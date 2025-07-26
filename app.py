@@ -67,14 +67,7 @@ st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="ð
 # Better styled button CSS
 st.markdown("""
     <style>
-    div.centered-button-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-top: 20px;
-        margin-bottom: 10px;
-    }
-    div.centered-button-container button {
+    div.stButton > button {
         background-color: #3B82F6 !important;
         color: white !important;
         padding: 14px 28px !important;
@@ -84,8 +77,10 @@ st.markdown("""
         border-radius: 12px !important;
         box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
         cursor: pointer;
+        display: block;
+        margin: 20px auto 10px auto;
     }
-    div.centered-button-container button:hover {
+    div.stButton > button:hover {
         background-color: #2563EB !important;
     }
     </style>
@@ -132,10 +127,7 @@ with st.form("marketing_form", border=False):
         strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
         extra_notes = st.text_area("Extra Instructions (optional)", height=100)
 
-    # âœ… Run Agent button placed below both columns, centered visually with updated styling
-    st.markdown('<div class="centered-button-container">', unsafe_allow_html=True)
     submitted = st.form_submit_button("Run Agent")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # -- Agent Execution --
 if submitted:
