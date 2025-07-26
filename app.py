@@ -67,28 +67,32 @@ st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="�
 # Better styled button CSS
 st.markdown("""
     <style>
+    .centered-button-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
     .stButton>button {
-        background-color: #1E3A8A !important;
+        background-color: #3B82F6 !important; /* light blue */
         color: white !important;
-        padding: 0.75rem 2rem !important;
+        padding: 0.9rem 2rem !important;
         font-size: 18px !important;
         font-weight: 600 !important;
-        border-radius: 8px !important;
+        border-radius: 10px !important;
         border: none !important;
         transition: background-color 0.3s ease !important;
-        margin-top: 10px !important;
-        display: inline-block;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
     .stButton>button:hover {
-        background-color: #1E40AF !important;
+        background-color: #2563EB !important; /* darker blue */
     }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
     <div style='display: flex; align-items: center; gap: 10px;'>
-        <img src='https://cdn-icons-png.flaticon.com/512/10616/10616845.png' width='40' style='margin-bottom:4px;'/>
+        <img src='https://cdn-icons-png.flaticon.com/512/10616/10616845.png' width='40' style='margin-bottom:4px;' />
         <h1 style='margin: 0;'>Marketing Agent</h1>
     </div>
 """, unsafe_allow_html=True)
@@ -119,9 +123,6 @@ with st.form("marketing_form", border=False):
         campaign_type = st.multiselect("Campaign Channels", ["TikTok", "Facebook", "Instagram", "YouTube", "LinkedIn", "TV", "Radio", "Billboard", "Print", "Social Media", "Traditional"])
         campaign_goal = st.selectbox("Campaign Goal", ["Drive Sales", "Generate Leads", "Raise Awareness", "Promote Event", "Boost App Downloads", "Increase Website Traffic"])
 
-        # ✅ Run Agent button with proper styling
-        submitted = st.form_submit_button("Run Agent")
-
     with col2:
         budget = st.selectbox("Budget Range", ["Low (<$500)", "Medium ($500-$5000)", "High (>$5000)"])
         campaign_duration = st.selectbox("Campaign Duration", ["1 week", "2 weeks", "1 month", "Ongoing"])
@@ -129,6 +130,12 @@ with st.form("marketing_form", border=False):
         brand_tone = st.selectbox("Brand Tone", ["Playful", "Professional", "Bold", "Minimalist"])
         strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
         extra_notes = st.text_area("Extra Instructions (optional)", height=100)
+
+    # ✅ Run Agent button placed below both columns, centered
+    with st.container():
+        st.markdown('<div class="centered-button-container">', unsafe_allow_html=True)
+        submitted = st.form_submit_button("Run Agent")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # -- Agent Execution --
 if submitted:
