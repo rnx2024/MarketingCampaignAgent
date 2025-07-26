@@ -80,7 +80,7 @@ st.markdown("""
     }
     .center-button button {
         background-color: #1E40AF !important;
-        color: white !important;
+        color: #3B82F6 !important;
         padding: 20px 20px !important;
         width: 80px !important;
         height: 80px !important;
