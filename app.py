@@ -133,8 +133,9 @@ with st.form("marketing_form", border=False):
         extra_notes = st.text_area("Extra Instructions (optional)", height=100)
 
     # ✅ Run Agent button placed below both columns, centered visually with updated styling
-    with st.container():
-        st.markdown('<div class="centered-button-container">' + st.form_submit_button("Run Agent") + '</div>', unsafe_allow_html=True)
+    st.markdown('<div class="centered-button-container">', unsafe_allow_html=True)
+    submitted = st.form_submit_button("Run Agent")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # -- Agent Execution --
 if submitted:
