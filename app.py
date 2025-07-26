@@ -67,25 +67,26 @@ st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="�
 # Better styled button CSS
 st.markdown("""
     <style>
-    .centered-button-container {
+    div.centered-button-container {
         display: flex;
         justify-content: center;
+        align-items: center;
         margin-top: 20px;
         margin-bottom: 10px;
     }
-    .stButton>button {
-        background-color: #3B82F6 !important; /* light blue */
+    div.centered-button-container button {
+        background-color: #3B82F6 !important;
         color: white !important;
-        padding: 0.9rem 2rem !important;
+        padding: 14px 28px !important;
         font-size: 18px !important;
         font-weight: 600 !important;
-        border-radius: 10px !important;
         border: none !important;
-        transition: background-color 0.3s ease !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        border-radius: 12px !important;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
     }
-    .stButton>button:hover {
-        background-color: #2563EB !important; /* darker blue */
+    div.centered-button-container button:hover {
+        background-color: #2563EB !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -131,11 +132,9 @@ with st.form("marketing_form", border=False):
         strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
         extra_notes = st.text_area("Extra Instructions (optional)", height=100)
 
-    # ✅ Run Agent button placed below both columns, centered
+    # ✅ Run Agent button placed below both columns, centered visually with updated styling
     with st.container():
-        st.markdown('<div class="centered-button-container">', unsafe_allow_html=True)
-        submitted = st.form_submit_button("Run Agent")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="centered-button-container">' + st.form_submit_button("Run Agent") + '</div>', unsafe_allow_html=True)
 
 # -- Agent Execution --
 if submitted:
