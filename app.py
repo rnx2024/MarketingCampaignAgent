@@ -79,9 +79,21 @@ st.markdown("""
         margin-top: 20px;
     }
     .center-button button {
-        background-color: #1E40AF !important;"  // darker hover
+        background-color: #1E40AF !important;
+        color: white !important;
+        padding: 20px 20px !important;
+        width: 80px !important;
+        height: 80px !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 50% !important;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        cursor: pointer;
+        transition: background-color 0.3s ease;
     }
-  ]
+    .center-button button:hover {
+        background-color: #1E3A8A !important;
 }
         color: white !important;
         padding: 20px 20px !important;
