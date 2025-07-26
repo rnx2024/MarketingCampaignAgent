@@ -7,9 +7,6 @@ from typing import TypedDict, Annotated, List
 from fpdf import FPDF
 import uuid
 
-import streamlit as st
-
-
 # -- API Key Setup --
 if "OPENAI_API_KEY" not in st.secrets:
     st.error("❌ OPENAI_API_KEY not found in st.secrets.")
@@ -66,15 +63,31 @@ graph = builder.compile()
 
 # -- Streamlit UI --
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
-st.markdown(
-    """
+st.markdown("""
+    <style>
+    .stButton>button {
+        background-color: #1E3A8A;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        transition: background-color 0.3s ease;
+        margin-top: 10px;
+    }
+    .stButton>button:hover {
+        background-color: #1E40AF;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
     <div style='display: flex; align-items: center; gap: 10px;'>
         <img src='https://cdn-icons-png.flaticon.com/512/10616/10616845.png' width='40' style='margin-bottom:4px;'/>
         <h1 style='margin: 0;'>Marketing Agent</h1>
     </div>
-    """,
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
 st.caption("Powered by LangGraph | OpenAI")
 
@@ -93,28 +106,25 @@ persona_profiles = {
 
 with st.form("marketing_form", border=False):
     col1, col2 = st.columns(2)
+
     with col1:
-        product_type = st.selectbox("Product Type", [
-            "Cellphone", "Clothing", "Laptop", "Furniture", "Shoes", "Tablet", "Appliances"])
+        product_type = st.selectbox("Product Type", ["Cellphone", "Clothing", "Laptop", "Furniture", "Shoes", "Tablet", "Appliances"])
         product_price = st.selectbox("Product Price Tier", ["Budget", "Mid-range", "Premium"])
         target_persona = st.selectbox("Audience Persona", list(persona_profiles.keys()))
-        target_location = st.selectbox("Target Location", [
-            "United States", "Philippines", "Canada", "Europe", "Latin America", "Asia"])
-        campaign_type = st.multiselect("Campaign Channels", [
-            "TikTok", "Facebook", "Instagram", "YouTube", "LinkedIn",
-            "TV", "Radio", "Billboard", "Print", "Social Media", "Traditional"])
-        campaign_goal = st.selectbox("Campaign Goal", [
-            "Drive Sales", "Generate Leads", "Raise Awareness", "Promote Event", "Boost App Downloads", "Increase Website Traffic"])
+        target_location = st.selectbox("Target Location", ["United States", "Philippines", "Canada", "Europe", "Latin America", "Asia"])
+        campaign_type = st.multiselect("Campaign Channels", ["TikTok", "Facebook", "Instagram", "YouTube", "LinkedIn", "TV", "Radio", "Billboard", "Print", "Social Media", "Traditional"])
+        campaign_goal = st.selectbox("Campaign Goal", ["Drive Sales", "Generate Leads", "Raise Awareness", "Promote Event", "Boost App Downloads", "Increase Website Traffic"])
+
+        # ✅ Run Agent button placed here just below Campaign Goal
+        submitted = st.form_submit_button("Run Agent")
+
     with col2:
         budget = st.selectbox("Budget Range", ["Low (<$500)", "Medium ($500-$5000)", "High (>$5000)"])
         campaign_duration = st.selectbox("Campaign Duration", ["1 week", "2 weeks", "1 month", "Ongoing"])
         call_to_action = st.selectbox("Preferred CTA", ["Buy Now", "Sign Up", "Visit Store", "Learn More"])
         brand_tone = st.selectbox("Brand Tone", ["Playful", "Professional", "Bold", "Minimalist"])
-        strategy_mode = st.radio("Strategy Mode", [
-            "General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
+        strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
         extra_notes = st.text_area("Extra Instructions (optional)", height=100)
-
-    submitted = st.form_submit_button("Run Agent")
 
 # -- Agent Execution --
 if submitted:
@@ -139,11 +149,9 @@ if submitted:
     }
 
     final_state = graph.invoke(user_state)
-
     campaign_output = "\n\n".join(st.session_state["log"])
     st.text_area("📄 Clean Output", campaign_output, height=500)
 
-    # -- PDF Export --
     def generate_pdf(text):
         pdf = FPDF()
         pdf.add_page()
@@ -154,15 +162,12 @@ if submitted:
         pdf.output(filename)
         return filename
 
-    if st.download_button("📥 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
+    if st.download_button("📅 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
         st.success("Download ready.")
 
-    st.markdown(
-        """
+    st.markdown("""
         <hr style='margin-top: 40px;'>
         <div style='text-align: center; color: #888888; font-size: 14px;'>
             © 2025 Marketing Agent by Rhanny Urbis | All rights reserved.
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
