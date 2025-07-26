@@ -1,1 +1,18 @@
+# .streamlit/config.toml
+
+[theme]
+primaryColor = "#3B82F6"                # Electric Blue
+backgroundColor = "#FFFFFF"             # White
+secondaryBackgroundColor = "#F4F6F8"    # Light Gray
+textColor = "#1A1A1A"                   # Near Black
+font = "sans serif"                     # Clean modern font
+
+
+[server]
+headless = true
+port = 8501
+enableCORS = false
+
+[client]
+toolbarMode = "minimal"
 
