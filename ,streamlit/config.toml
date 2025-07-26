@@ -1,12 +1,9 @@
-# .streamlit/config.toml
-
 [theme]
-primaryColor = "#3B82F6"                # Electric Blue
-backgroundColor = "#FFFFFF"             # White
-secondaryBackgroundColor = "#F4F6F8"    # Light Gray
-textColor = "#1A1A1A"                   # Near Black
-font = "sans serif"                     # Clean modern font
-
+primaryColor = "#1E90FF"                # Dodger Blue for actions
+backgroundColor = "#1A1A1A"             # Charcoal Black background
+secondaryBackgroundColor = "#2C2C2E"    # Dark gray container background
+textColor = "#F1F1F1"                   # Light text
+font = "sans serif"                     # Modern clean font
 
 [server]
 headless = true
@@ -15,4 +12,3 @@ enableCORS = false
 
 [client]
 toolbarMode = "minimal"
-
