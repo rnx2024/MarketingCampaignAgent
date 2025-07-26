@@ -79,7 +79,10 @@ st.markdown("""
         margin-top: 20px;
     }
     .center-button button {
-        background-color: #3B82F6 !important;
+        background-color: #1E40AF !important;"  // darker hover
+    }
+  ]
+}
         color: white !important;
         padding: 20px 20px !important;
         width: 80px !important;
