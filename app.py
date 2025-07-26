@@ -148,12 +148,11 @@ with st.form("marketing_form", border=False):
         brand_tone = st.selectbox("Brand Tone", ["Playful", "Professional", "Bold", "Minimalist"])
         strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
 
-    # Full width
     extra_notes = st.text_area("Extra Instructions (optional)", height=100)
 
-    # Run Agent button centered under full form
-    with st.container():
+    with st.markdown("<div class='center-button'>", unsafe_allow_html=True):
         submitted = st.form_submit_button("Run Agent")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # -- Agent Execution --
 if submitted:
