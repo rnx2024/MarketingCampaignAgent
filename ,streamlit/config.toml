@@ -14,3 +14,7 @@ enableCORS = false
 
 [client]
 toolbarMode = "minimal"
+
+[server]
+runOnSave = false
+
