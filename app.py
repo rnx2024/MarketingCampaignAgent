@@ -63,21 +63,25 @@ graph = builder.compile()
 
 # -- Streamlit UI --
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
+
+# Better styled button CSS
 st.markdown("""
     <style>
     .stButton>button {
-        background-color: #1E3A8A;
-        color: white;
-        padding: 0.75rem 2rem;
-        font-size: 18px;
-        font-weight: 600;
-        border-radius: 8px;
-        border: none;
-        transition: background-color 0.3s ease;
-        margin-top: 10px;
+        background-color: #1E3A8A !important;
+        color: white !important;
+        padding: 0.75rem 2rem !important;
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        border: none !important;
+        transition: background-color 0.3s ease !important;
+        margin-top: 10px !important;
+        display: inline-block;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
     .stButton>button:hover {
-        background-color: #1E40AF;
+        background-color: #1E40AF !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -115,7 +119,7 @@ with st.form("marketing_form", border=False):
         campaign_type = st.multiselect("Campaign Channels", ["TikTok", "Facebook", "Instagram", "YouTube", "LinkedIn", "TV", "Radio", "Billboard", "Print", "Social Media", "Traditional"])
         campaign_goal = st.selectbox("Campaign Goal", ["Drive Sales", "Generate Leads", "Raise Awareness", "Promote Event", "Boost App Downloads", "Increase Website Traffic"])
 
-        # ✅ Run Agent button placed here just below Campaign Goal
+        # ✅ Run Agent button with proper styling
         submitted = st.form_submit_button("Run Agent")
 
     with col2:
@@ -162,7 +166,7 @@ if submitted:
         pdf.output(filename)
         return filename
 
-    if st.download_button("📅 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
+    if st.download_button("📥 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
         st.success("Download ready.")
 
     st.markdown("""
