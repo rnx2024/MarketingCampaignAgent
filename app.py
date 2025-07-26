@@ -73,7 +73,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.caption("Powered by LangGraph | Plan → Execute → Review")
+st.caption("Powered by LangGraph | OpenAI")
 
 if "log" not in st.session_state:
     st.session_state["log"] = []
@@ -150,6 +150,15 @@ if submitted:
         filename = f"campaign_output_{uuid.uuid4().hex[:8]}.pdf"
         pdf.output(filename)
         return filename
+   st.markdown(
+    """
+    <hr style='margin-top: 40px;'>
+    <div style='text-align: center; color: #888888; font-size: 14px;'>
+        © 2025 Marketing Agent by Rhanny Urbis | All rights reserved.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
     if st.download_button("📥 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
         st.success("Download ready.")
