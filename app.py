@@ -73,7 +73,12 @@ st.markdown("""
     .stApp {
         background: linear-gradient(120deg, #f8fbff, #e4ecf7);
     }
-    div.stButton > button {
+    .center-button {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    .center-button button {
         background-color: #3B82F6 !important;
         color: white !important;
         padding: 20px 20px !important;
@@ -85,11 +90,9 @@ st.markdown("""
         border-radius: 50% !important;
         box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
         cursor: pointer;
-        display: block;
-        margin: 30px auto;
         transition: background-color 0.3s ease;
     }
-    div.stButton > button:hover {
+    .center-button button:hover {
         background-color: #2563EB !important;
     }
     div[data-testid="stForm"] {
@@ -145,11 +148,12 @@ with st.form("marketing_form", border=False):
         brand_tone = st.selectbox("Brand Tone", ["Playful", "Professional", "Bold", "Minimalist"])
         strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
 
-    # Extra notes below both columns
+    # Full width
     extra_notes = st.text_area("Extra Instructions (optional)", height=100)
 
-    # Centered button below full width
-    submitted = st.form_submit_button("Run Agent")
+    # Run Agent button centered under full form
+    with st.container():
+        submitted = st.form_submit_button("Run Agent")
 
 # -- Agent Execution --
 if submitted:
