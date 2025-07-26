@@ -1,9 +1,11 @@
+# .streamlit/config.toml
+
 [theme]
-primaryColor = "#1E90FF"                # Dodger Blue for actions
-backgroundColor = "#1A1A1A"             # Charcoal Black background
-secondaryBackgroundColor = "#2C2C2E"    # Dark gray container background
-textColor = "#F1F1F1"                   # Light text
-font = "sans serif"                     # Modern clean font
+primaryColor = "#3B82F6"                # Light blue (button color)
+backgroundColor = "#1E3A8A"             # Dark blue background
+secondaryBackgroundColor = "#1E40AF"    # Container background (slightly darker)
+textColor = "#FFFFFF"                   # White text
+font = "sans serif"
 
 [server]
 headless = true
