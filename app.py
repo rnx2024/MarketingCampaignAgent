@@ -161,7 +161,7 @@ with st.form("marketing_form", border=False):
         campaign_duration = st.selectbox("Campaign Duration", ["1 week", "2 weeks", "1 month", "Ongoing"])
         call_to_action = st.selectbox("Preferred CTA", ["Buy Now", "Sign Up", "Visit Store", "Learn More"])
         brand_tone = st.selectbox("Brand Tone", ["Playful", "Professional", "Bold", "Minimalist"])
-        strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
+        strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Event Launch", "Product Promotion", "Seasonal Campaign", "Flash Sale"])
 
     extra_notes = st.text_area("Extra Instructions (optional)", height=100)
 
