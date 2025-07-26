@@ -63,7 +63,7 @@ graph = builder.compile()
 
 # -- Streamlit UI --
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
-st.title("Marketing Agent")
+st.title("https://cdn-icons-png.flaticon.com/512/10616/10616845.png" "Marketing Agent")
 st.caption("Powered by LangGraph | Plan → Execute → Review")
 
 if "log" not in st.session_state:
