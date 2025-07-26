@@ -9,45 +9,6 @@ import uuid
 
 import streamlit as st
 
-# Set page config
-st.set_page_config(page_title="Agent Runner", layout="wide")
-
-# Inject CSS for styled button
-st.markdown("""
-    <style>
-    .custom-button {
-        background-color: #3B82F6;
-        color: white;
-        padding: 0.5rem 1.2rem;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-        margin-top: 8px;
-        width: 100%;
-    }
-    .custom-button:hover {
-        background-color: #1E40AF;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Layout: Input and button side-by-side
-col1, col2 = st.columns([4, 1])
-
-with col1:
-    extra_instructions = st.text_input("Extra Instructions", placeholder="Enter agent instructions")
-
-with col2:
-    # Spacer to align with input height
-    st.markdown("<br>", unsafe_allow_html=True)
-    # Native button, to maintain Python callback
-    if st.button("Run Agent"):
-        st.success(f"Agent is running with instructions: {extra_instructions}")
-
-    # Optional: If you want a styled button instead (but no callback):
-    # st.markdown('<button class="custom-button">Run Agent</button>', unsafe_allow_html=True)
 
 # -- API Key Setup --
 if "OPENAI_API_KEY" not in st.secrets:
