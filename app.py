@@ -61,31 +61,50 @@ builder.add_edge("review", END)
 
 graph = builder.compile()
 
-# -- Streamlit UI --
+# -- Streamlit UI Config --
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
 
-# Better styled button CSS
+# -- Custom CSS Styling --
 st.markdown("""
     <style>
+    body {
+        background: linear-gradient(120deg, #f8fbff, #e4ecf7);
+    }
+    .stApp {
+        background: linear-gradient(120deg, #f8fbff, #e4ecf7);
+    }
     div.stButton > button {
         background-color: #3B82F6 !important;
         color: white !important;
-        padding: 14px 28px !important;
-        font-size: 18px !important;
-        font-weight: 600 !important;
+        padding: 20px 20px !important;
+        width: 80px !important;
+        height: 80px !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
         border: none !important;
-        border-radius: 12px !important;
-        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        border-radius: 50% !important;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
         cursor: pointer;
         display: block;
-        margin: 20px auto 10px auto;
+        margin: 30px auto;
+        transition: background-color 0.3s ease;
     }
     div.stButton > button:hover {
         background-color: #2563EB !important;
     }
+    div[data-testid="stForm"] {
+        background-color: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+    }
+    .stSelectbox, .stTextArea, .stRadio, .stMultiSelect {
+        font-size: 16px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
+# -- Header --
 st.markdown("""
     <div style='display: flex; align-items: center; gap: 10px;'>
         <img src='https://cdn-icons-png.flaticon.com/512/10616/10616845.png' width='40' style='margin-bottom:4px;' />
@@ -153,7 +172,13 @@ if submitted:
 
     final_state = graph.invoke(user_state)
     campaign_output = "\n\n".join(st.session_state["log"])
-    st.text_area("📄 Clean Output", campaign_output, height=500)
+
+    st.markdown("### 📄 Clean Output")
+    st.markdown(f"""
+    <div style='background-color:#ffffff;border:1px solid #ccc;border-radius:10px;padding:16px;height:500px;overflow-y:scroll;white-space:pre-wrap;font-family:monospace;font-size:14px;'>
+    {campaign_output}
+    </div>
+    """, unsafe_allow_html=True)
 
     def generate_pdf(text):
         pdf = FPDF()
@@ -165,7 +190,7 @@ if submitted:
         pdf.output(filename)
         return filename
 
-    if st.download_button("📥 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
+    if st.download_button("📅 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
         st.success("Download ready.")
 
     st.markdown("""
