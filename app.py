@@ -144,8 +144,11 @@ with st.form("marketing_form", border=False):
         call_to_action = st.selectbox("Preferred CTA", ["Buy Now", "Sign Up", "Visit Store", "Learn More"])
         brand_tone = st.selectbox("Brand Tone", ["Playful", "Professional", "Bold", "Minimalist"])
         strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Content Calendar Generator", "Creative Brief Draft", "A/B Testing Planner"])
-        extra_notes = st.text_area("Extra Instructions (optional)", height=100)
 
+    # Extra notes below both columns
+    extra_notes = st.text_area("Extra Instructions (optional)", height=100)
+
+    # Centered button below full width
     submitted = st.form_submit_button("Run Agent")
 
 # -- Agent Execution --
@@ -190,7 +193,7 @@ if submitted:
         pdf.output(filename)
         return filename
 
-    if st.download_button("📅 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
+    if st.download_button("📥 Download as PDF", data=open(generate_pdf(campaign_output), "rb"), file_name="campaign_output.pdf", mime="application/pdf"):
         st.success("Download ready.")
 
     st.markdown("""
