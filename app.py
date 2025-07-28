@@ -204,6 +204,7 @@ if submitted:
     {campaign_output}
     </div>
     """, unsafe_allow_html=True)
+    
 def generate_pdf(video_scripts: dict):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -226,10 +227,10 @@ def generate_pdf(video_scripts: dict):
             pdf.multi_cell(0, 8, content if content else "[Content to be generated]")
             pdf.ln(4)
 
-    pdf_output = BytesIO()
-    pdf.output(pdf_output)
-    pdf_output.seek(0)
-    return pdf_output
+    # Output PDF as a byte string and wrap it in BytesIO
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    return BytesIO(pdf_bytes)
+
 
 # -- Add PDF download section 
 if submitted:
