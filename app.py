@@ -198,32 +198,35 @@ if submitted:
     final_state = graph.invoke(user_state)
     campaign_output = "\n\n".join(st.session_state["log"])
 
-    st.markdown("### 📄 Clean Output")
+    st.markdown("### 📄 Marketing Plan")
     st.markdown(f"""
     <div style='background-color:#ffffff;border:1px solid #ccc;border-radius:10px;padding:16px;height:500px;overflow-y:scroll;white-space:pre-wrap;font-family:monospace;font-size:14px;'>
     {campaign_output}
     </div>
     """, unsafe_allow_html=True)
-    
-def generate_pdf(campaign_text: str) -> BytesIO:
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
 
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Marketing Campaign Plan", ln=True)
-    pdf.ln(10)
+    # -- Generate PDF from campaign_output --
+    def generate_pdf(campaign_text: str) -> BytesIO:
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
 
-    pdf.set_font("Arial", "", 12)
-    for line in campaign_text.splitlines():
-        pdf.multi_cell(0, 8, line)
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, "Marketing Campaign Plan", ln=True)
+        pdf.ln(10)
 
-    pdf_bytes = pdf.output(dest='S').encode('latin1')
-    return BytesIO(pdf_bytes)
- 
+        pdf.set_font("Arial", "", 12)
+        for line in campaign_text.splitlines():
+            pdf.multi_cell(0, 8, line)
+
+        pdf_bytes = pdf.output(dest='S').encode('latin1')
+        return BytesIO(pdf_bytes)
+
+    # -- Show Download Button --
+    pdf_file = generate_pdf(campaign_output)
     st.download_button(
-        label="📥 Download Video Scripts PDF",
+        label="📥 Download Campaign Plan as PDF",
         data=pdf_file,
-        file_name=f"marketing_scripts_{uuid.uuid4().hex[:6]}.pdf",
+        file_name=f"marketing_campaign_{uuid.uuid4().hex[:6]}.pdf",
         mime="application/pdf"
     )
