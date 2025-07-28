@@ -204,15 +204,14 @@ if submitted:
     </div>
     """, unsafe_allow_html=True)
 
-
 def generate_pdf(text):
     pdf = FPDF()
     pdf.add_page()
 
-    # Load a Unicode font (e.g., DejaVuSans)
+    # Load a Unicode-compatible font
     font_path = "DejaVuSans.ttf"
     if not os.path.exists(font_path):
-        st.error("Missing DejaVuSans.ttf. Please place it in the same folder.")
+        st.error("Missing DejaVuSans.ttf. Please download and place it in the same folder as this script.")
         return None
 
     pdf.add_font("DejaVu", "", font_path, uni=True)
@@ -225,6 +224,25 @@ def generate_pdf(text):
     pdf.output(buffer)
     buffer.seek(0)
     return buffer
+
+# Streamlit app layout
+st.title("Text to PDF Converter")
+user_input = st.text_area("Enter your text below:", height=300)
+
+if st.button("Generate PDF"):
+    if user_input.strip() == "":
+        st.warning("Please enter some text to convert.")
+    else:
+        pdf_file = generate_pdf(user_input)
+        if pdf_file:
+            st.success("PDF generated successfully!")
+
+            st.download_button(
+                label="📄 Download PDF",
+                data=pdf_file,
+                file_name="converted_text.pdf",
+                mime="application/pdf"
+            )
 
 
     st.markdown("""
