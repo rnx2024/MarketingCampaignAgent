@@ -206,21 +206,27 @@ if submitted:
     """, unsafe_allow_html=True)
 
     # -- Generate PDF from campaign_output --
-    def generate_pdf(campaign_text: str) -> BytesIO:
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
+    import html
 
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, "Marketing Campaign Plan", ln=True)
-        pdf.ln(10)
+def generate_pdf(campaign_text: str) -> BytesIO:
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
 
-        pdf.set_font("Arial", "", 12)
-        for line in campaign_text.splitlines():
-            pdf.multi_cell(0, 8, line)
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Marketing Campaign Plan", ln=True)
+    pdf.ln(10)
 
-        pdf_bytes = pdf.output(dest='S').encode('latin1')
-        return BytesIO(pdf_bytes)
+    pdf.set_font("Arial", "", 12)
+
+    # Clean/replace non-latin1 characters
+    safe_text = campaign_text.encode("latin-1", errors="replace").decode("latin-1")
+
+    for line in safe_text.splitlines():
+        pdf.multi_cell(0, 8, line)
+
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+    return BytesIO(pdf_bytes)
 
     # -- Show Download Button --
     pdf_file = generate_pdf(campaign_output)
