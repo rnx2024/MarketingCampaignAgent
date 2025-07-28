@@ -173,6 +173,27 @@ with st.form("marketing_form", border=False):
         submitted = st.form_submit_button("Run Agent")
     st.markdown("</div>", unsafe_allow_html=True)
 
+def generate_pdf(campaign_text: str) -> BytesIO:
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Marketing Campaign Plan", ln=True)
+    pdf.ln(10)
+
+    pdf.set_font("Arial", "", 12)
+
+    # Replace unsupported characters
+    safe_text = campaign_text.encode("latin-1", errors="replace").decode("latin-1")
+
+    for line in safe_text.splitlines():
+        pdf.multi_cell(0, 8, line)
+
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+    return BytesIO(pdf_bytes)
+
+# -- Agent Execution --
 # -- Agent Execution --
 if submitted:
     st.session_state["log"] = []
@@ -205,30 +226,7 @@ if submitted:
     </div>
     """, unsafe_allow_html=True)
 
-    # -- Generate PDF from campaign_output --
-    import html
-
-def generate_pdf(campaign_text: str) -> BytesIO:
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Marketing Campaign Plan", ln=True)
-    pdf.ln(10)
-
-    pdf.set_font("Arial", "", 12)
-
-    # Clean/replace non-latin1 characters
-    safe_text = campaign_text.encode("latin-1", errors="replace").decode("latin-1")
-
-    for line in safe_text.splitlines():
-        pdf.multi_cell(0, 8, line)
-
-    pdf_bytes = pdf.output(dest='S').encode('latin-1')
-    return BytesIO(pdf_bytes)
-
-    # -- Show Download Button --
+    # Generate PDF and show download button
     pdf_file = generate_pdf(campaign_output)
     st.download_button(
         label="📥 Download Campaign Plan as PDF",
