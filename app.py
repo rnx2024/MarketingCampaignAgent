@@ -5,7 +5,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from typing import TypedDict, Annotated, List
 from fpdf import FPDF
-import io
+from io import BytesIO
 import uuid
 from fpdf import FPDF
 import os
@@ -204,26 +204,33 @@ if submitted:
     </div>
     """, unsafe_allow_html=True)
 
-def generate_pdf(text):
+def generate_pdf(video_scripts: dict):
     pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    # Load a Unicode font (e.g., DejaVuSans)
-    font_path = "DejaVuSans.ttf"
-    if not os.path.exists(font_path):
-        st.error("Missing DejaVuSans.ttf. Please place it in the same folder.")
-        return None
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Social Media Video Scripts", ln=True)
 
-    pdf.add_font("DejaVu", "", font_path, uni=True)
-    pdf.set_font("DejaVu", size=12)
+    pdf.set_font("Arial", "", 12)
 
-    for line in text.splitlines():
-        pdf.multi_cell(0, 10, line)
+    for platform, script in video_scripts.items():
+        pdf.ln(10)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, f"{platform} Script", ln=True)
 
-    buffer = io.BytesIO()
-    pdf.output(buffer)
-    buffer.seek(0)
-    return buffer
+        for section, content in script.items():
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 8, section, ln=True)
+            pdf.set_font("Arial", "", 12)
+            pdf.multi_cell(0, 8, content if content else "[Content to be generated]")
+            pdf.ln(4)
+
+    pdf_output = BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return pdf_output
+
 
 
 # -- After generating campaign_output --
