@@ -208,10 +208,10 @@ def generate_pdf(text):
     pdf = FPDF()
     pdf.add_page()
 
-    # Load a Unicode-compatible font
+    # Load a Unicode font (e.g., DejaVuSans)
     font_path = "DejaVuSans.ttf"
     if not os.path.exists(font_path):
-        st.error("Missing DejaVuSans.ttf. Please download and place it in the same folder as this script.")
+        st.error("Missing DejaVuSans.ttf. Please place it in the same folder.")
         return None
 
     pdf.add_font("DejaVu", "", font_path, uni=True)
@@ -225,29 +225,53 @@ def generate_pdf(text):
     buffer.seek(0)
     return buffer
 
-# Streamlit app layout
-st.title("Text to PDF Converter")
-user_input = st.text_area("Enter your text below:", height=300)
 
-if st.button("Generate PDF"):
-    if user_input.strip() == "":
-        st.warning("Please enter some text to convert.")
-    else:
-        pdf_file = generate_pdf(user_input)
-        if pdf_file:
-            st.success("PDF generated successfully!")
+# -- After generating campaign_output --
+if submitted:
+    st.session_state["log"] = []
 
-            st.download_button(
-                label="📄 Download PDF",
-                data=pdf_file,
-                file_name="converted_text.pdf",
-                mime="application/pdf"
-            )
+    profile_traits = persona_profiles.get(target_persona, "")
+    channels = ", ".join(campaign_type) if campaign_type else "unspecified channels"
 
+    prompt = (
+        f"Strategy Mode: {strategy_mode}.\n"
+        f"Target a {target_persona} in {target_location}.\n"
+        f"Product: {product_type} ({product_price}).\n"
+        f"Budget: {budget}. Duration: {campaign_duration}. CTA: {call_to_action}.\n"
+        f"Use these platforms: {channels}. Tone: {brand_tone}.\n"
+        f"Campaign goal: {campaign_goal}. {profile_traits}"
+        f"{' Extra notes: ' + extra_notes if extra_notes else ''}"
+    )
 
-    st.markdown("""
-        <hr style='margin-top: 40px;'>
-        <div style='text-align: center; color: #888888; font-size: 14px;'>
-            © 2025 Marketing Agent by Rhanny Urbis | All rights reserved.
-        </div>
+    user_state = {
+        "messages": [HumanMessage(content=prompt)],
+        "stage": "plan"
+    }
+
+    final_state = graph.invoke(user_state)
+    campaign_output = "\n\n".join(st.session_state["log"])
+
+    st.markdown("### 📄 Clean Output")
+    st.markdown(f"""
+    <div style='background-color:#ffffff;border:1px solid #ccc;border-radius:10px;padding:16px;height:500px;overflow-y:scroll;white-space:pre-wrap;font-family:monospace;font-size:14px;'>
+    {campaign_output}
+    </div>
     """, unsafe_allow_html=True)
+
+    # -- Generate PDF and show download button --
+    pdf_buffer = generate_pdf(campaign_output)
+    if pdf_buffer:
+        st.download_button(
+            label="📥 Download Campaign as PDF",
+            data=pdf_buffer,
+            file_name="marketing_campaign_plan.pdf",
+            mime="application/pdf"
+        )
+
+# -- Footer --
+st.markdown("""
+    <hr style='margin-top: 40px;'>
+    <div style='text-align: center; color: #888888; font-size: 14px;'>
+        © 2025 Marketing Agent by Rhanny Urbis | All rights reserved.
+    </div>
+""", unsafe_allow_html=True)
