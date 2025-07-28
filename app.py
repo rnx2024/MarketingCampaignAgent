@@ -7,6 +7,8 @@ from typing import TypedDict, Annotated, List
 from fpdf import FPDF
 import io
 import uuid
+from fpdf import FPDF
+import os
 
 # -- Streamlit UI Config --
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
@@ -202,20 +204,28 @@ if submitted:
     </div>
     """, unsafe_allow_html=True)
 
-    def generate_pdf(text):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        for line in text.splitlines():
-            pdf.multi_cell(0, 10, line)
-        buffer = io.BytesIO()
-        pdf.output(buffer)
-        buffer.seek(0)
-        return buffer
 
-    pdf_buffer = generate_pdf(campaign_output)
+def generate_pdf(text):
+    pdf = FPDF()
+    pdf.add_page()
 
-    st.download_button("📥 Download as PDF", data=pdf_buffer, file_name="campaign_output.pdf", mime="application/pdf")
+    # Load a Unicode font (e.g., DejaVuSans)
+    font_path = "DejaVuSans.ttf"
+    if not os.path.exists(font_path):
+        st.error("Missing DejaVuSans.ttf. Please place it in the same folder.")
+        return None
+
+    pdf.add_font("DejaVu", "", font_path, uni=True)
+    pdf.set_font("DejaVu", size=12)
+
+    for line in text.splitlines():
+        pdf.multi_cell(0, 10, line)
+
+    buffer = io.BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+    return buffer
+
 
     st.markdown("""
         <hr style='margin-top: 40px;'>
