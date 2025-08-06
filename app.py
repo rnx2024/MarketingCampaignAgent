@@ -29,7 +29,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h2>Marketing Agent</h2>", unsafe_allow_html=True)
+st.markdown("<h2>📣 Marketing Agent</h2>", unsafe_allow_html=True)
 st.caption("Minimal UI → choose output type, paste a few lines, generate.")
 
 # -------------------------------------------------------
