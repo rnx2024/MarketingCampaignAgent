@@ -12,11 +12,7 @@ st.title("📣 Marketing Campaign Generator")
 
 # Fetch constants from backend using query parameters
 query_params = {
-    "include_company": "true",
-    "include_products": "true",
-    "include_channels": "true",
-    "include_campaigns": "true",
-    "include_outputs": "true"
+    "include_all": "true"
 }
 
 try:
@@ -69,7 +65,7 @@ if submit:
         }
 
         try:
-            res = requests.post(f"{API_BASE}/marketing/campaign", json=payload, timeout=60)
+            res = requests.post(f"{API_BASE}/marketing/generate", json=payload, timeout=60)
             res.raise_for_status()
             result = res.json()
             st.success("✅ Campaign Plan Generated!")
