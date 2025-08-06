@@ -1,109 +1,66 @@
 import streamlit as st
 import requests
-import json
 
-# --------------------------------
-# CONFIG
-# --------------------------------
-API_BASE_URL = "https://marketing-agent-latest.onrender.com"  # <-- replace with your Render FastAPI URL
+# API base URL — your deployed FastAPI backend
+API_BASE = "https://marketing-agent-latest.onrender.com"
 
-st.set_page_config(page_title="Marketing Agent", layout="centered")
-st.title("📢 Marketing Agent Frontend")
+# Page setup
+st.set_page_config(page_title="Marketing Agent", page_icon="📣", layout="centered")
+st.title("📣 Marketing Campaign Generator")
 
-def post_json(endpoint, payload):
-    """Send POST request to the FastAPI backend."""
-    try:
-        res = requests.post(f"{API_BASE_URL}{endpoint}", json=payload, timeout=60)
-        res.raise_for_status()
-        return res.json(), None
-    except requests.exceptions.RequestException as e:
-        return None, str(e)
+# Input form
+with st.form("campaign_form"):
+    brand = st.text_input("Brand Name", value="GlowNest")
+    brand_overview = st.text_area("Brand Overview", value="GlowNest is a modern wellness brand focused on natural skincare solutions.")
+    product = st.selectbox("Product", ["Radiant Day Cream", "GlowSerum", "Botanical Cleanser"])
+    channels = st.multiselect(
+        "Channels", 
+        ["Facebook", "Instagram", "TikTok", "YouTube", "TV", "Print", "Billboard", "All Media"], 
+        default=["Instagram", "TikTok"]
+    )
+    campaign_type = st.selectbox("Campaign Type", ["Product Launch", "Holiday Sale", "Store Sale", "Big Event", "Online Sale"])
+    tone = st.selectbox("Tone", ["Playful", "Professional", "Empowering", "Urgent", "Inspirational"])
+    budget = st.text_input("Budget", "$5,000")
+    duration = st.text_input("Campaign Duration", "2 weeks")
 
-# --------------------------------
-# Tabs
-# --------------------------------
-tab1, tab2, tab3 = st.tabs(["Campaign", "Social Posts", "TikTok Script"])
+    submit = st.form_submit_button("Generate Campaign Plan")
 
-# -------------------------
-# Campaign Tab
-# -------------------------
-with tab1:
-    st.subheader("Generate Campaign Plan")
-    brand = st.text_input("Brand", "EcomSphere")
-    product = st.text_input("Product", "Storefront Suite")
-    brief = st.text_area("Brief", "Increase signups for free trial targeting boutique fashion sellers.")
-    channels = st.multiselect("Channels", ["TikTok", "Facebook", "Instagram", "LinkedIn"], ["TikTok", "Facebook"])
-
-    if st.button("Generate Campaign"):
+# API call
+if submit:
+    with st.spinner("Calling your AI agent..."):
         payload = {
             "brand": brand,
+            "brand_overview": brand_overview,
             "product": product,
-            "brief": brief,
-            "channels": channels
+            "product_features": ["SPF 30", "Vitamin C", "Lightweight"],  # Fixed sample values
+            "product_pricing": "$39.99",
+            "brief": f"{campaign_type} campaign for {product}",
+            "persona": "Urban professionals",
+            "location": "US",
+            "tone": tone,
+            "goal": "Drive awareness and conversions",
+            "cta": "Buy now",
+            "constraints": ["No medical claims"],
+            "notes": "Focus on summer season benefits.",
+            "channels": channels,
+            "budget": budget,
+            "duration": duration
         }
-        with st.spinner("Generating..."):
-            data, err = post_json("/marketing/campaign", payload)
-        if err:
-            st.error(err)
-        else:
-            st.success("Done")
-            st.write("**Plan**")
-            st.code(data.get("plan", ""))
-            st.write("**Execution**")
-            st.code(data.get("execution", ""))
-            st.write("**Review**")
-            st.code(data.get("review", ""))
 
-# -------------------------
-# Social Posts Tab
-# -------------------------
-with tab2:
-    st.subheader("Generate Social Posts")
-    brand = st.text_input("Brand", "EcomSphere", key="s_brand")
-    product = st.text_input("Product", "Storefront Suite", key="s_product")
-    brief = st.text_area("Brief", "Social posts for free trial campaign.", key="s_brief")
-    platforms = st.multiselect("Platforms", ["Facebook", "Instagram", "Twitter", "LinkedIn", "TikTok"], ["Facebook", "Instagram"])
-    posts_per_platform = st.number_input("Posts per platform", min_value=1, max_value=10, value=3)
+        try:
+            res = requests.post(f"{API_BASE}/marketing/campaign", json=payload, timeout=60)
+            res.raise_for_status()
+            result = res.json()
+            st.success("✅ Campaign Plan Generated!")
 
-    if st.button("Generate Posts"):
-        payload = {
-            "brand": brand,
-            "product": product,
-            "brief": brief,
-            "platforms": platforms,
-            "posts_per_platform": posts_per_platform
-        }
-        with st.spinner("Generating..."):
-            data, err = post_json("/marketing/social-posts", payload)
-        if err:
-            st.error(err)
-        else:
-            st.success("Done")
-            st.json(data)
+            st.subheader("📌 Plan")
+            st.markdown(result["plan"])
 
-# -------------------------
-# TikTok Tab
-# -------------------------
-with tab3:
-    st.subheader("Generate TikTok Script")
-    brand = st.text_input("Brand", "EcomSphere", key="t_brand")
-    product = st.text_input("Product", "Storefront Suite", key="t_product")
-    brief = st.text_area("Brief", "Short video for free trial promo.", key="t_brief")
-    duration_seconds = st.number_input("Duration (seconds)", min_value=10, max_value=90, value=30)
-    hook_style = st.selectbox("Hook Style", ["problem", "surprise", "stat", "benefit"], index=3)
+            st.subheader("🚀 Execution")
+            st.markdown(result["execution"])
 
-    if st.button("Generate TikTok Script"):
-        payload = {
-            "brand": brand,
-            "product": product,
-            "brief": brief,
-            "duration_seconds": duration_seconds,
-            "hook_style": hook_style
-        }
-        with st.spinner("Generating..."):
-            data, err = post_json("/marketing/tiktok-script", payload)
-        if err:
-            st.error(err)
-        else:
-            st.success("Done")
-            st.json(data)
+            st.subheader("🧐 Review")
+            st.markdown(result["review"])
+
+        except Exception as e:
+            st.error(f"❌ Error generating campaign: {e}")
