@@ -4,15 +4,23 @@ from fpdf import FPDF
 from io import BytesIO
 
 # API base URL — your deployed FastAPI backend
-API_BASE = "https://marketing-agent-latest.onrender.com"
+API_BASE = "https://marketing-agent-api-latest.onrender.com"
 
 # Page setup
 st.set_page_config(page_title="Marketing Agent", page_icon="📣", layout="centered")
 st.title("📣 Marketing Campaign Generator")
 
-# Fetch constants from backend
+# Fetch constants from backend using query parameters
+query_params = {
+    "include_company": "true",
+    "include_products": "true",
+    "include_channels": "true",
+    "include_campaigns": "true",
+    "include_outputs": "true"
+}
+
 try:
-    constants_res = requests.get(f"{API_BASE}/constants")
+    constants_res = requests.get(f"{API_BASE}/constants", params=query_params)
     constants_res.raise_for_status()
     constants = constants_res.json()
 except Exception as e:
