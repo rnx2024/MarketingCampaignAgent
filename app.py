@@ -10,12 +10,7 @@ from fpdf import FPDF
 # ---------------------------
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
 
-DEFAULT_API_BASE = os.getenv("API_BASE_URL", "https://marketing-agent-latest.onrender.com").rstrip("/")
-st.sidebar.header("Configuration")
-api_base_url = st.sidebar.text_input("API Base URL", value=DEFAULT_API_BASE, help="Your FastAPI backend base URL")
-if not api_base_url:
-    st.sidebar.error("API Base URL is required.")
-    st.stop()
+api_base_url = "https://marketing-agent-latest.onrender.com"
 
 # ---------------------------
 # Styles
