@@ -37,9 +37,13 @@ st.caption("Minimal UI → choose output type, paste a few lines, generate.")
 # -------------------------------------------------------
 def call_api(path: str, payload: dict):
     url = f"{API_BASE}{path}"
-    resp = requests.post(url, json=payload, timeout=TIMEOUT)
-    data = resp.json() if "application/json" in resp.headers.get("content-type", "") else {"raw": resp.text}
-    return resp.ok, data, resp.status_code
+    try:
+        resp = requests.post(url, json=payload, timeout=TIMEOUT)
+        ct = resp.headers.get("content-type", "")
+        data = resp.json() if "application/json" in ct else {"raw": resp.text}
+        return resp.ok, data, resp.status_code
+    except requests.RequestException as e:
+        return False, {"error": str(e)}, 0
 
 def pdf_bytes(text: str) -> BytesIO:
     pdf = FPDF()
@@ -66,33 +70,29 @@ def parse_csv_box(value: str, expected: int):
 action = st.selectbox("Output Type", ["Campaign Plan", "Social Posts", "TikTok Script"], index=0)
 
 with st.form("minimal_form", clear_on_submit=False):
-    st.markdown("#### Brand, Product, Price")
     brand_product_price = st.text_area(
-        "Format: brand, product, price",
+        "Brand, Product, Price (comma-separated)",
         placeholder="Acme Inc., Reusable Water Bottle, $25",
         height=60
     )
 
-    st.markdown("#### Audience, Location, Duration, Budget")
     aud_loc_dur_budget = st.text_area(
-        "Format: target audience, location, duration, campaign budget",
+        "Target Audience, Location, Duration, Campaign Budget (comma-separated)",
         placeholder="Environmentally conscious millennials and Gen Z, USA, 2 weeks, $5000",
         height=60
     )
 
-    st.markdown("#### Tone & CTA")
     tone_choice = st.selectbox(
-        "Tone",
+        "Tone (optional)",
         ["", "Playful", "Professional", "Bold", "Minimalist", "Inspiring", "Friendly"],
         index=0
     )
     cta_text = st.text_input("Call to Action (optional)", placeholder="Shop now")
 
-    st.markdown("#### Extra Notes")
     extra_notes = st.text_area(
-        "Any extra guidance, constraints, or context",
+        "Extra Notes (brief, constraints, context, etc.)",
         placeholder="Back-to-school and work-mode promotion up to 20% off. No overclaiming or over-promising.",
-        height=80
+        height=100
     )
 
     submitted = st.form_submit_button("Generate")
@@ -101,7 +101,6 @@ with st.form("minimal_form", clear_on_submit=False):
 # Submit
 # -------------------------------------------------------
 if submitted:
-    # Parse the two required boxes
     bpp, err1 = parse_csv_box(brand_product_price, expected=3)
     aldb, err2 = parse_csv_box(aud_loc_dur_budget, expected=4)
 
@@ -115,26 +114,27 @@ if submitted:
     brand, product, price = bpp
     audience, location, duration, budget = aldb
 
+    # BaseBrief-compatible payload
     base = {
         "brand": brand,
-        "brand_overview": None,
+        "brand_overview": None,        # not collected here
         "product": product,
-        "product_features": None,
+        "product_features": [],        # list fields default to [] to avoid backend None joins
         "product_pricing": price,
-        "brief": extra_notes.strip() or "General campaign brief.",
+        "brief": (extra_notes.strip() or "General campaign brief."),
         "persona": audience,
         "location": location,
-        "tone": tone_choice or None,
+        "tone": (tone_choice or None),
         "goal": None,
-        "cta": cta_text.strip() or None,
-        "constraints": None,
+        "cta": (cta_text.strip() or None),
+        "constraints": [],             # keep minimal UI; can parse from notes later if needed
         "notes": None,
     }
 
     if action == "Campaign Plan":
         payload = dict(base)
         payload.update({
-            "channels": ["Instagram", "TikTok"],
+            "channels": ["Instagram", "TikTok"],  # defaults to keep UI minimal
             "budget": budget,
             "duration": duration
         })
@@ -148,12 +148,13 @@ if submitted:
             out = f"PLAN\n\n{plan}\n\nEXECUTION\n\n{execution}\n\nREVIEW\n\n{review}"
             st.markdown("#### Result")
             st.markdown(f"<div class='box'>{out}</div>", unsafe_allow_html=True)
-            st.download_button("Download as PDF", data=pdf_bytes(out), file_name="campaign.pdf", mime="application/pdf")
+            st.download_button("Download as PDF", data=pdf_bytes(out),
+                               file_name="campaign.pdf", mime="application/pdf")
 
     elif action == "Social Posts":
         payload = dict(base)
         payload.update({
-            "platforms": ["Instagram", "TikTok"],
+            "platforms": ["Instagram", "TikTok"],  # minimal default
             "posts_per_platform": 3,
             "include_hashtags": True,
             "include_emojis": False,
@@ -175,7 +176,8 @@ if submitted:
                 text = "\n".join(lines)
             st.markdown("#### Result")
             st.markdown(f"<div class='box'>{text}</div>", unsafe_allow_html=True)
-            st.download_button("Download as PDF", data=pdf_bytes(text), file_name="social_posts.pdf", mime="application/pdf")
+            st.download_button("Download as PDF", data=pdf_bytes(text),
+                               file_name="social_posts.pdf", mime="application/pdf")
 
     else:  # TikTok Script
         payload = dict(base)
@@ -202,4 +204,5 @@ if submitted:
             text = "\n\n".join(parts) if parts else str(data)
             st.markdown("#### Result")
             st.markdown(f"<div class='box'>{text}</div>", unsafe_allow_html=True)
-            st.download_button("Download as PDF", data=pdf_bytes(text), file_name="tiktok_script.pdf", mime="application/pdf")
+            st.download_button("Download as PDF", data=pdf_bytes(text),
+                               file_name="tiktok_script.pdf", mime="application/pdf")
