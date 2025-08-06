@@ -1,236 +1,264 @@
-import streamlit as st
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AnyMessage
-from langgraph.graph import StateGraph, END
-from langgraph.graph.message import add_messages
-from typing import TypedDict, Annotated, List
-from fpdf import FPDF
+import os
 from io import BytesIO
 import uuid
+import requests
+import streamlit as st
 from fpdf import FPDF
-import os
 
-
-# -- Streamlit UI Config --
+# ---------------------------
+# Config
+# ---------------------------
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
 
-# -- Custom CSS Styling --
-st.markdown("""
-    <style>
-    body {
-        background: linear-gradient(120deg, #f8fbff, #e4ecf7);
-    }
-    .stApp {
-        background: linear-gradient(120deg, #f8fbff, #e4ecf7);
-    }
-    .center-button {
-        display: flex;
-        justify-content: center;
-        margin-top: 20px;
-    }
-    .center-button button {
-        background-color: #1E40AF !important;
-        color: #3B82F6 !important;
-        padding: 20px 20px !important;
-        width: 80px !important;
-        height: 80px !important;
-        font-size: 14px !important;
-        font-weight: 700 !important;
-        border: none !important;
-        border-radius: 50% !important;
-        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-    }
-    .center-button button:hover {
-        background-color: #2563EB !important;
-    }
-    div[data-testid="stForm"] {
-        background-color: white;
-        border-radius: 12px;
-        padding: 24px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-    }
-    .stSelectbox, .stTextArea, .stRadio, .stMultiSelect {
-        font-size: 16px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# -- Header --
-st.markdown("""
-    <div style='display: flex; align-items: center; gap: 10px;'>
-        <img src='https://cdn-icons-png.flaticon.com/512/10616/10616845.png' width='40' style='margin-bottom:4px;' />
-        <h1 style='margin: 0;'>Marketing Agent</h1>
-    </div>
-""", unsafe_allow_html=True)
-
-st.caption("Powered by LangGraph | OpenAI")
-
-# -- Session State --
-if "log" not in st.session_state:
-    st.session_state["log"] = []
-
-# -- API Key Setup --
-if "OPENAI_API_KEY" not in st.secrets:
-    st.error("❌ OPENAI_API_KEY not found in st.secrets.")
+DEFAULT_API_BASE = os.getenv("API_BASE_URL", "https://marketing-agent-latest.onrender.com").rstrip("/")
+st.sidebar.header("Configuration")
+api_base_url = st.sidebar.text_input("API Base URL", value=DEFAULT_API_BASE, help="Your FastAPI backend base URL")
+if not api_base_url:
+    st.sidebar.error("API Base URL is required.")
     st.stop()
 
-llm = ChatOpenAI(model="gpt-4o", api_key=st.secrets["OPENAI_API_KEY"])
+# ---------------------------
+# Styles
+# ---------------------------
+st.markdown("""
+<style>
+    .stApp { background: linear-gradient(120deg, #f8fbff, #e4ecf7); }
+    div[data-testid="stForm"] {
+        background-color: white; border-radius: 12px; padding: 24px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+    }
+    .box {
+        background-color:#ffffff;border:1px solid #d9e2ec;border-radius:10px;
+        padding:16px; height:480px; overflow-y:auto; white-space:pre-wrap;
+        font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size:14px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# -- LangGraph Shared State --
-class AgentState(TypedDict):
-    messages: Annotated[List[AnyMessage], add_messages]
-    stage: str
+st.markdown("""
+<div style='display:flex;align-items:center;gap:10px;'>
+    <img src='https://cdn-icons-png.flaticon.com/512/10616/10616845.png' width='36' />
+    <h1 style='margin:0;'>Marketing Agent</h1>
+</div>
+""", unsafe_allow_html=True)
+st.caption("Frontend for your FastAPI Marketing Agent")
 
-# -- LangGraph Nodes --
-def planner_node(state: AgentState) -> AgentState:
-    st.session_state['log'].append("\nPlanner Node\n" + "="*50)
-    user_input = state["messages"][-1].content
-    response = llm.invoke(
-        f"""
-        You are a senior marketing strategist with expertise in viral trends, social media psychology, influencer marketing, and conversion-driven campaigns.
-        Analyze the request below and create a detailed, 3-step campaign plan tailored for the specified audience and brand tone. 
-        Use current marketing best practices, viral content hooks, trend-driven formats (e.g., short-form video, meme strategy, influencer UGC), and conversion copywriting techniques.
-        Include:
-        - Specific content types and creative concepts per platform
-        - How to leverage trends and seasonal hooks
-        - Any relevant data or techniques to increase engagement, CTR, or ROI
+# ---------------------------
+# Helpers
+# ---------------------------
+def call_api(path: str, payload: dict) -> tuple[bool, str|dict]:
+    url = f"{api_base_url}{path}"
+    try:
+        resp = requests.post(url, json=payload, timeout=60)
+        if resp.headers.get("content-type", "").startswith("application/json"):
+            data = resp.json()
+        else:
+            data = {"raw": resp.text}
+        if resp.ok:
+            return True, data
+        return False, data
+    except requests.RequestException as e:
+        return False, {"error": str(e)}
 
-        CAMPAIGN BRIEF:
-        {user_input}
-        """
-    )
-    st.session_state['log'].append("Plan:\n" + response.content)
-    return {"messages": [response], "stage": "execute"}
-
-def executor_node(state: AgentState) -> AgentState:
-    st.session_state['log'].append("\nExecutor Node\n" + "="*50)
-    plan = state["messages"][-1].content
-    response = llm.invoke(
-        f"You are a campaign executor. Based on the plan below, implement it by crafting sample content, suggested captions, scheduling ideas, and targeting logic:\n{plan}"
-    )
-    st.session_state['log'].append("Execution:\n" + response.content)
-    return {"messages": [response], "stage": "review"}
-
-def reviewer_node(state: AgentState) -> AgentState:
-    st.session_state['log'].append("\nReviewer Node\n" + "="*50)
-    result = state["messages"][-1].content
-    response = llm.invoke(
-        f"You are a senior marketing reviewer. Summarize the execution results, point out what's strong, what could be improved, and suggest optimization tips for better reach, engagement, or conversions:\n{result}"
-    )
-    st.session_state['log'].append("Review:\n" + response.content)
-    return {"messages": [response], "stage": "done"}
-
-def route_stage(state: AgentState) -> str:
-    return state["stage"]
-
-# -- Build LangGraph --
-builder = StateGraph(AgentState)
-builder.add_node("plan", planner_node)
-builder.add_node("execute", executor_node)
-builder.add_node("review", reviewer_node)
-
-builder.set_conditional_entry_point(route_stage, {
-    "plan": "plan",
-    "execute": "execute",
-    "review": "review"
-})
-
-builder.add_edge("plan", "execute")
-builder.add_edge("execute", "review")
-builder.add_edge("review", END)
-
-graph = builder.compile()
-
-# -- UI Form --
-persona_profiles = {
-    "Gen Z College Student": "Values authenticity, short videos, influencer content, and prepaid mobile data.",
-    "Urban Working Parent": "Seeks convenience, value bundles, responsive to Facebook and YouTube promotions.",
-    "Budget-conscious Remote Worker": "Uses affordable tools, responsive to Facebook ads and discounts.",
-    "Affluent Tech Enthusiast": "Prefers high-end products, values innovation, follows YouTube and tech blogs.",
-    "Millennial Professional": "Digital native, responds to value-driven campaigns, prefers Instagram and LinkedIn, interested in convenience and brand ethics.",
-    "Gen X Executive": "Focuses on reliability, productivity, and status-driven purchases, uses LinkedIn and long-form content."
-}
-
-with st.form("marketing_form", border=False):
-    col1, col2 = st.columns(2)
-    with col1:
-        product_type = st.selectbox("Product Type", ["Cellphone", "Clothing", "Laptop", "Furniture", "Shoes", "Tablet", "Appliances"])
-        product_price = st.selectbox("Product Price Tier", ["Budget", "Mid-range", "Premium"])
-        target_persona = st.selectbox("Audience Persona", list(persona_profiles.keys()))
-        target_location = st.selectbox("Target Location", ["United States", "Philippines", "Canada", "Europe", "Latin America", "Asia"])
-        campaign_type = st.multiselect("Campaign Channels", ["TikTok", "Facebook", "Instagram", "YouTube", "LinkedIn", "TV", "Radio", "Billboard", "Print", "Social Media", "Traditional"])
-        campaign_goal = st.selectbox("Campaign Goal", ["Drive Sales", "Generate Leads", "Raise Awareness", "Promote Event", "Boost App Downloads", "Increase Website Traffic"])
-    with col2:
-        budget = st.selectbox("Budget Range", ["Low (<$500)", "Medium ($500-$5000)", "High (>$5000)"])
-        campaign_duration = st.selectbox("Campaign Duration", ["1 week", "2 weeks", "1 month", "Ongoing"])
-        call_to_action = st.selectbox("Preferred CTA", ["Buy Now", "Sign Up", "Visit Store", "Learn More"])
-        brand_tone = st.selectbox("Brand Tone", ["Playful", "Professional", "Bold", "Minimalist"])
-        strategy_mode = st.radio("Strategy Mode", ["General Campaign", "Event Launch", "Product Promotion", "Seasonal Campaign", "Flash Sale"])
-    extra_notes = st.text_area("Extra Instructions (optional)", height=100)
-    with st.markdown("<div class='center-button'>", unsafe_allow_html=True):
-        submitted = st.form_submit_button("Run Agent")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-def generate_pdf(campaign_text: str) -> BytesIO:
+def generate_pdf(text: str) -> BytesIO:
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Marketing Campaign Plan", ln=True)
-    pdf.ln(10)
-
+    pdf.cell(0, 10, "Marketing Output", ln=True)
+    pdf.ln(6)
     pdf.set_font("Arial", "", 12)
-
-    # Replace unsupported characters
-    safe_text = campaign_text.encode("latin-1", errors="replace").decode("latin-1")
-
+    safe_text = text.encode("latin-1", errors="replace").decode("latin-1")
     for line in safe_text.splitlines():
-        pdf.multi_cell(0, 8, line)
-
+        pdf.multi_cell(0, 7, line)
     pdf_bytes = pdf.output(dest='S').encode('latin-1')
     return BytesIO(pdf_bytes)
 
-# -- Agent Execution --
-# -- Agent Execution --
-if submitted:
-    st.session_state["log"] = []
+def flatten_posts(posts: dict) -> str:
+    if "raw" in posts:
+        return posts["raw"][0] if isinstance(posts["raw"], list) else str(posts["raw"])
+    out_lines = []
+    for platform, lines in posts.items():
+        out_lines.append(f"=== {platform} ===")
+        for ln in lines:
+            out_lines.append(ln)
+        out_lines.append("")
+    return "\n".join(out_lines)
 
-    profile_traits = persona_profiles.get(target_persona, "")
-    channels = ", ".join(campaign_type) if campaign_type else "unspecified channels"
+# ---------------------------
+# Tabs for three flows
+# ---------------------------
+tab1, tab2, tab3 = st.tabs(["Campaign Plan", "Social Posts", "TikTok Script"])
 
-    prompt = (
-        f"Strategy Mode: {strategy_mode}.\n"
-        f"Target a {target_persona} in {target_location}.\n"
-        f"Product: {product_type} ({product_price}).\n"
-        f"Budget: {budget}. Duration: {campaign_duration}. CTA: {call_to_action}.\n"
-        f"Use these platforms: {channels}. Tone: {brand_tone}.\n"
-        f"Campaign goal: {campaign_goal}. {profile_traits}"
-        f"{' Extra notes: ' + extra_notes if extra_notes else ''}"
+# Common “Brand / Product / Brief” inputs
+def brand_product_inputs():
+    col1, col2 = st.columns(2)
+    with col1:
+        brand = st.text_input("Brand", placeholder="Acme Inc.")
+        brand_overview = st.text_area("Brand Overview", placeholder="Short mission or brand context...", height=80)
+        product = st.text_input("Product/Service", placeholder="Reusable Water Bottle")
+        product_pricing = st.text_input("Pricing/Tiers", placeholder="$19.99 or Starter/Growth/Enterprise")
+    with col2:
+        product_features = st.text_area("Key Features (one per line)", placeholder="BPA-free\n24h cold\nLightweight", height=120)
+        persona = st.text_input("Persona", placeholder="Environmentally-conscious millennials")
+        location = st.text_input("Location", placeholder="USA")
+        tone = st.text_input("Tone", placeholder="Inspiring")
+    brief = st.text_area("Brief (required)", placeholder="Summer social campaign to boost sales by 20%.", height=100)
+    cta = st.text_input("CTA", placeholder="Shop now")
+    constraints = st.text_area("Constraints (one per line)", placeholder="No medical claims\nAvoid overpromising", height=80)
+    notes = st.text_area("Extra Notes", placeholder="Any extra guidance...", height=80)
+
+    features = [f.strip() for f in product_features.splitlines() if f.strip()] if product_features else None
+    rules = [r.strip() for r in constraints.splitlines() if r.strip()] if constraints else None
+    return dict(
+        brand=brand.strip(),
+        brand_overview=brand_overview.strip() or None,
+        product=product.strip(),
+        product_features=features or None,
+        product_pricing=product_pricing.strip() or None,
+        brief=brief.strip(),
+        persona=persona.strip() or None,
+        location=location.strip() or None,
+        tone=tone.strip() or None,
+        goal=None,
+        cta=cta.strip() or None,
+        constraints=rules or None,
+        notes=notes.strip() or None
     )
 
-    user_state = {
-        "messages": [HumanMessage(content=prompt)],
-        "stage": "plan"
-    }
+with tab1:
+    st.subheader("Campaign Plan")
+    with st.form("campaign_form", clear_on_submit=False):
+        base = brand_product_inputs()
+        colA, colB = st.columns(2)
+        with colA:
+            channels = st.multiselect("Channels", ["TikTok", "Facebook", "Instagram", "Twitter", "LinkedIn"])
+            budget = st.text_input("Budget", placeholder="$5000")
+        with colB:
+            duration = st.text_input("Duration", placeholder="2 weeks")
+        submitted = st.form_submit_button("Generate Campaign")
+    if submitted:
+        if not base["brief"]:
+            st.error("Brief is required.")
+        elif not base["brand"] or not base["product"]:
+            st.error("Brand and Product are required.")
+        else:
+            payload = base | {
+                "channels": channels or None,
+                "budget": budget or None,
+                "duration": duration or None
+            }
+            ok, data = call_api("/marketing/campaign", payload)
+            if not ok:
+                st.error(data)
+            else:
+                plan = data.get("plan", "")
+                execution = data.get("execution", "")
+                review = data.get("review", "")
+                full_text = "PLAN\n\n" + plan + "\n\nEXECUTION\n\n" + execution + "\n\nREVIEW\n\n" + review
+                st.markdown("#### Result")
+                st.markdown(f"<div class='box'>{full_text}</div>", unsafe_allow_html=True)
+                pdf = generate_pdf(full_text)
+                st.download_button(
+                    label="Download as PDF",
+                    data=pdf,
+                    file_name=f"campaign_{uuid.uuid4().hex[:6]}.pdf",
+                    mime="application/pdf"
+                )
 
-    final_state = graph.invoke(user_state)
-    campaign_output = "\n\n".join(st.session_state["log"])
+with tab2:
+    st.subheader("Social Posts")
+    with st.form("posts_form", clear_on_submit=False):
+        base = brand_product_inputs()
+        colA, colB = st.columns(2)
+        with colA:
+            platforms = st.multiselect("Platforms", ["Facebook", "Instagram", "Twitter", "LinkedIn", "TikTok"], default=["Instagram", "TikTok"])
+            posts_per_platform = st.number_input("Posts per platform", 1, 10, 3, step=1)
+        with colB:
+            include_hashtags = st.checkbox("Include hashtags", value=True)
+            include_emojis = st.checkbox("Include emojis", value=False)
+            length = st.selectbox("Length", ["short", "medium", "long"], index=0)
+        submitted = st.form_submit_button("Generate Posts")
+    if submitted:
+        if not base["brief"]:
+            st.error("Brief is required.")
+        elif not base["brand"] or not base["product"]:
+            st.error("Brand and Product are required.")
+        else:
+            payload = base | {
+                "platforms": platforms,
+                "posts_per_platform": int(posts_per_platform),
+                "include_hashtags": bool(include_hashtags),
+                "include_emojis": bool(include_emojis),
+                "length": length
+            }
+            ok, data = call_api("/marketing/social-posts", payload)
+            if not ok:
+                st.error(data)
+            else:
+                posts = data.get("posts", {})
+                text = flatten_posts(posts)
+                st.markdown("#### Result")
+                st.markdown(f"<div class='box'>{text}</div>", unsafe_allow_html=True)
+                pdf = generate_pdf(text)
+                st.download_button(
+                    label="Download as PDF",
+                    data=pdf,
+                    file_name=f"social_posts_{uuid.uuid4().hex[:6]}.pdf",
+                    mime="application/pdf"
+                )
 
-    st.markdown("### 📄 Marketing Plan")
-    st.markdown(f"""
-    <div style='background-color:#ffffff;border:1px solid #ccc;border-radius:10px;padding:16px;height:500px;overflow-y:scroll;white-space:pre-wrap;font-family:monospace;font-size:14px;'>
-    {campaign_output}
-    </div>
-    """, unsafe_allow_html=True)
+with tab3:
+    st.subheader("TikTok Script")
+    with st.form("tiktok_form", clear_on_submit=False):
+        base = brand_product_inputs()
+        colA, colB = st.columns(2)
+        with colA:
+            duration_seconds = st.number_input("Duration (seconds)", 10, 90, 30, step=5)
+            hook_style = st.selectbox("Hook style", ["problem", "surprise", "stat", "benefit"], index=3)
+        with colB:
+            include_shot_list = st.checkbox("Include shot list", value=True)
+            include_captions = st.checkbox("Include captions", value=True)
+            include_voiceover = st.checkbox("Include voiceover", value=True)
+        submitted = st.form_submit_button("Generate Script")
+    if submitted:
+        if not base["brief"]:
+            st.error("Brief is required.")
+        elif not base["brand"] or not base["product"]:
+            st.error("Brand and Product are required.")
+        else:
+            payload = base | {
+                "duration_seconds": int(duration_seconds),
+                "hook_style": hook_style,
+                "include_shot_list": bool(include_shot_list),
+                "include_captions": bool(include_captions),
+                "include_voiceover": bool(include_voiceover)
+            }
+            ok, data = call_api("/marketing/tiktok-script", payload)
+            if not ok:
+                st.error(data)
+            else:
+                # Build readable text
+                parts = []
+                sb = data.get("storyboard") or []
+                if sb:
+                    parts.append("STORYBOARD\n" + "\n".join(sb))
+                if data.get("voiceover"):
+                    parts.append("VOICEOVER\n" + data["voiceover"])
+                caps = data.get("captions") or []
+                if caps:
+                    parts.append("CAPTIONS\n" + "\n".join(caps))
+                if data.get("posting_notes"):
+                    parts.append("POSTING NOTES\n" + data["posting_notes"])
+                text = "\n\n".join(parts) if parts else str(data)
 
-    # Generate PDF and show download button
-    pdf_file = generate_pdf(campaign_output)
-    st.download_button(
-        label="📥 Download Campaign Plan as PDF",
-        data=pdf_file,
-        file_name=f"marketing_campaign_{uuid.uuid4().hex[:6]}.pdf",
-        mime="application/pdf"
-    )
+                st.markdown("#### Result")
+                st.markdown(f"<div class='box'>{text}</div>", unsafe_allow_html=True)
+                pdf = generate_pdf(text)
+                st.download_button(
+                    label="Download as PDF",
+                    data=pdf,
+                    file_name=f"tiktok_{uuid.uuid4().hex[:6]}.pdf",
+                    mime="application/pdf"
+                )
