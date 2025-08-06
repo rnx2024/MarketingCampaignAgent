@@ -28,15 +28,15 @@ with st.form("campaign_form"):
     brand = st.text_input("Brand Name", value=constants.get("company_name", ""), disabled=True)
     brand_overview = st.text_area(
         "Brand Overview",
-        value=f"{constants.get('company_name', '')} is {constants.get('company_document', '')}",
+        value=constants.get("company_document", ""),
         disabled=True
     )
-    product = st.selectbox("Product", constants.get("products_available", []))
-    channels = st.multiselect("Channels", constants.get("channel_options", []), default=["Instagram", "TikTok"])
-    campaign_type = st.selectbox("Campaign Type", constants.get("campaign_types", []))
-    tone = st.selectbox("Tone", ["Playful", "Professional", "Empowering", "Urgent", "Inspirational"])
-    budget = st.text_input("Budget", "$5,000", disabled=True)
-    duration = st.text_input("Campaign Duration", "2 weeks", disabled=True)
+    product = st.selectbox("Product", constants.get("products_available", []), disabled=True)
+    channels = st.multiselect("Channels", constants.get("channel_options", []), default=constants.get("channel_options", [])[:2], disabled=True)
+    campaign_type = st.selectbox("Campaign Type", constants.get("campaign_types", []), disabled=True)
+    tone = st.selectbox("Tone", ["Playful", "Professional", "Empowering", "Urgent", "Inspirational"], disabled=True)
+    budget = st.text_input("Budget", value="$5,000", disabled=True)
+    duration = st.text_input("Campaign Duration", value="2 weeks", disabled=True)
     output = st.selectbox("Output Type", constants.get("output_types", []))
 
     submit = st.form_submit_button("Generate Campaign Plan")
