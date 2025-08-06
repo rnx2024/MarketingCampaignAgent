@@ -5,7 +5,7 @@ import json
 # --------------------------------
 # CONFIG
 # --------------------------------
-API_BASE_URL = "https://your-backend.onrender.com"  # <-- replace with your Render FastAPI URL
+API_BASE_URL = "https://marketing-agent-latest.onrender.com"  # <-- replace with your Render FastAPI URL
 
 st.set_page_config(page_title="Marketing Agent", layout="centered")
 st.title("📢 Marketing Agent Frontend")
