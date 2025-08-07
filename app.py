@@ -58,7 +58,7 @@ if st.session_state.registered:
         brief = st.text_area("Brief")
         persona = st.text_input("Target Persona")
         location = st.text_input("Location")
-        tone = st.selectbox("Tone", ["Professional", "Casual", "Funny"])
+        tone = st.selectbox("Tone", ["Professional", "Casual", "Funny"], key="tone_selectbox")
         goal = st.text_input("Marketing Goal")
         cta = st.text_input("Call to Action")
         constraints = st.text_area("Constraints (comma separated)")
@@ -93,10 +93,10 @@ if st.session_state.registered:
     # --- CAMPAIGN HISTORY INPUT ---
     st.header("🗄️ Past Campaign History (Optional)")
     hist_product = st.text_input("Product")
-    hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"])
-    hist_output_type = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"])
+    hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="hist_channel")
+    hist_output_type = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="hist_output")
     hist_result = st.text_area("Campaign Result")
-    hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"])
+    hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"], key="hist_agent_created")
 
     if st.button("📅 Submit Campaign History"):
         payload = {
@@ -118,9 +118,9 @@ if st.session_state.registered:
     # --- GENERATE CAMPAIGN ---
     st.header("🏢 Generate Campaign Plan")
     prod = st.text_input("Product (from your saved products)")
-    channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"])
-    ctype = st.selectbox("Campaign Type", ["Awareness", "Conversion", "Retention"])
-    otype = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"])
+    channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="gen_channel")
+    ctype = st.selectbox("Campaign Type", ["Awareness", "Conversion", "Retention"], key="gen_type")
+    otype = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="gen_output")
     budget = st.text_input("Budget")
     duration = st.text_input("Duration")
 
