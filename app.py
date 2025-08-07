@@ -52,47 +52,32 @@ if st.session_state.registered:
     tab_company, tab_history, tab_generate = st.tabs(["🏢 Company Data", "📂 Campaign History", "🧠 Generate Campaign"])
 
     # --- COMPANY DATA ENTRY ---
-    with tab_company:
-        st.header("🏢 Company Info")
-        brand = st.text_input("Brand Name")
-        overview = st.text_area("Brand Overview")
-        product = st.text_input("Product Name")
-        features = st.text_area("Product Features (comma separated)")
-        pricing = st.text_input("Product Pricing")
-        brief = st.text_area("Brief")
-        persona = st.text_input("Target Persona")
-        location = st.text_input("Location")
-        tone = st.selectbox("Tone", ["Professional", "Casual", "Funny"], key="tone")
-        goal = st.text_input("Marketing Goal")
-        cta = st.text_input("Call to Action")
-        constraints = st.text_area("Constraints (comma separated)")
-        notes = st.text_area("Notes")
+    # --- COMPANY DATA ENTRY ---
+with tab_company:
+    st.header("🏢 Company Info")
+    company_name = st.text_input("Company Name")
+    company_profile = st.text_area("Company Profile")
+    products = st.text_input("Main Products (comma-separated)")
+    location = st.text_input("Location")
+    target_customer = st.text_input("Target Customer (e.g. students, professionals)")
 
-        if st.button("Submit Company Data"):
-            payload = {
-                "name": name,
-                "brand": brand,
-                "brand_overview": overview,
-                "product": product,
-                "product_features": [x.strip() for x in features.split(",")],
-                "product_pricing": pricing,
-                "brief": brief,
-                "persona": persona,
-                "location": location,
-                "tone": tone,
-                "goal": goal,
-                "cta": cta,
-                "constraints": [x.strip() for x in constraints.split(",")],
-                "notes": notes
-            }
-            r = requests.post(f"{BASE_URL}/company", json=payload)
-            if r.status_code == 200:
-                st.success("Company data saved")
-                st.session_state.company_data_entered = True
-            elif r.status_code == 429:
-                st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
-            else:
-                st.error("Error saving company data")
+    if st.button("Submit Company Data"):
+        payload = {
+            "company_name": company_name,
+            "company_profile": company_profile,
+            "products": products,
+            "location": location,
+            "target_customer": target_customer
+        }
+        headers = {"x-api-key": st.session_state.api_key}
+        r = requests.post(f"{BASE_URL}/company", json=payload, headers=headers)
+        if r.status_code == 200:
+            st.success("Company data saved")
+            st.session_state.company_data_entered = True
+        elif r.status_code == 429:
+            st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
+        else:
+            st.error("Error saving company data")
 
     # --- CAMPAIGN HISTORY INPUT ---
     with tab_history:
