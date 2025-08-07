@@ -141,3 +141,53 @@ elif st.session_state.registered and st.session_state.api_key:
                 elif r.status_code == 429:
                     st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
                 else:
+                    st.error("❌ Failed to save campaign history")
+
+    # --- GENERATE CAMPAIGN TAB ---
+    with tab_generate:
+        if not st.session_state.company_data_entered:
+            st.info("🧠 Submit company data first to start generating campaign plans.")
+        else:
+            st.subheader("🧠 Generate Campaign Plan")
+
+            prod = st.text_input("Product (from your saved products)", key="gen_product")
+            channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="gen_channel")
+            ctype = st.selectbox("Campaign Type", ["Awareness", "Conversion", "Retention"], key="gen_type")
+            otype = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="gen_output")
+            budget = st.text_input("Budget", key="gen_budget")
+            duration = st.text_input("Duration", key="gen_duration")
+
+            if st.button("Generate Campaign"):
+                payload = {
+                    "name": st.session_state.name,
+                    "product": prod,
+                    "channel": channel,
+                    "campaign_type": ctype,
+                    "output_type": otype,
+                    "budget": budget,
+                    "duration": duration
+                }
+                headers = {"x-api-key": st.session_state.api_key}
+                r = requests.post(f"{BASE_URL}/marketing/generate", json=payload, headers=headers)
+                if r.status_code == 200:
+                    data = r.json()
+                    st.success("✅ Campaign Generated")
+                    st.text_area("📋 Campaign Output", value=data.get("campaign", ""), height=300)
+
+                    if st.button("📄 Download PDF"):
+                        pdf = FPDF()
+                        pdf.add_page()
+                        pdf.set_font("Arial", size=12)
+                        pdf.multi_cell(0, 10, data.get("campaign", ""))
+
+                        pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                        st.download_button(
+                            label="Download Campaign PDF",
+                            data=pdf_bytes,
+                            file_name="campaign_plan.pdf",
+                            mime="application/pdf"
+                        )
+                elif r.status_code == 429:
+                    st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
+                else:
+                    st.error("❌ Error generating campaign.")
