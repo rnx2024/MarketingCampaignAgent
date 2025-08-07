@@ -151,7 +151,7 @@ elif st.session_state.registered and st.session_state.api_key:
             st.subheader("🧠 Generate Campaign Plan")
 
             prod = st.text_input("Product (from your saved products)", key="gen_product")
-            channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube, "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="gen_channel")
+            channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="gen_channel")
             ctype = st.selectbox("Campaign Type", ["Brand Awareness", "Lead Generation", "Product Launch", "Conversion", "Customer Retention", "Sales Promotion"], key="gen_ctype")
             otype = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads","Social Media Posts", "Campaign Plan", "Radio/TV Commerical" ], key="gen_otype")
             budget = st.text_input("Budget", key="gen_budget")
