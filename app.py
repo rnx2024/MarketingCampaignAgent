@@ -120,7 +120,7 @@ elif st.session_state.registered and st.session_state.api_key:
             st.subheader("🗄️ Record Campaign History")
 
             hist_product = st.text_input("Product", key="hist_product")
-            hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube, "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="hist_channel")
+            hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="hist_channel")
             hist_output_type = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads","Social Media Posts", "Campaign Plan", "Radio/TV Commerical" ], key="hist_output_type")
             hist_result = st.text_area("Campaign Result", key="hist_result")
             hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"], key="hist_agent")
