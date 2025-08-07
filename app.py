@@ -3,7 +3,7 @@ import requests
 from fpdf import FPDF
 
 # --- CONFIG ---
-BASE_URL = "https://marketing-agent-api-latest.onrender.com" 
+BASE_URL = "https://marketing-agent-api-latest.onrender.com"
 
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
 
@@ -22,29 +22,30 @@ if not st.session_state.registered:
     with tab1:
         st.subheader("🔐 Register")
         name = st.text_input("Name")
-        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
         apikey = st.text_input("API Key")
         if st.button("Register"):
-            payload = {"name": name, "email": email, "api_key": apikey}
+            payload = {"name": name, "password": password, "api_key": apikey}
             r = requests.post(f"{BASE_URL}/register", json=payload)
             if r.status_code == 200:
                 st.success("Registered successfully")
                 st.session_state.registered = True
-                st.session_state.email = email
+                st.session_state.name = name
+            elif r.status_code == 429:
+                st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
             else:
-                st.error("Registration failed")
+                st.error(r.json().get("detail", "Registration failed"))
 
     with tab2:
         st.subheader("🔑 Login")
-        email = st.text_input("Email (Login)")
+        name = st.text_input("Name (Login)")
         if st.button("Login"):
-            # no backend check needed, just a state change for frontend access
-            st.session_state.email = email
+            st.session_state.name = name
             st.session_state.registered = True
 
 if st.session_state.registered:
-    email = st.session_state.email
-    st.success(f"Logged in as {email}")
+    name = st.session_state.name
+    st.success(f"Logged in as {name}")
 
     # --- COMPANY DATA ENTRY ---
     if not st.session_state.company_data_entered:
@@ -65,7 +66,7 @@ if st.session_state.registered:
 
         if st.button("Submit Company Data"):
             payload = {
-                "email": email,
+                "name": name,
                 "brand": brand,
                 "brand_overview": overview,
                 "product": product,
@@ -84,6 +85,8 @@ if st.session_state.registered:
             if r.status_code == 200:
                 st.success("Company data saved")
                 st.session_state.company_data_entered = True
+            elif r.status_code == 429:
+                st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
             else:
                 st.error("Error saving company data")
 
@@ -97,7 +100,7 @@ if st.session_state.registered:
 
     if st.button("📅 Submit Campaign History"):
         payload = {
-            "email": email,
+            "name": name,
             "product": hist_product,
             "channel": hist_channel,
             "output_type": hist_output_type,
@@ -107,6 +110,8 @@ if st.session_state.registered:
         r = requests.post(f"{BASE_URL}/campaign/history", json=payload)
         if r.status_code == 200:
             st.success("History saved")
+        elif r.status_code == 429:
+            st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
         else:
             st.error("Failed to save campaign history")
 
@@ -121,7 +126,7 @@ if st.session_state.registered:
 
     if st.button("Generate Campaign"):
         payload = {
-            "email": email,
+            "name": name,
             "product": prod,
             "channel": channel,
             "campaign_type": ctype,
@@ -149,5 +154,7 @@ if st.session_state.registered:
                     file_name="campaign_plan.pdf",
                     mime="application/pdf"
                 )
+        elif r.status_code == 429:
+            st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
         else:
             st.error("Error generating campaign")
