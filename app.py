@@ -43,12 +43,16 @@ if not st.session_state.registered:
             st.session_state.name = name
             st.session_state.registered = True
 
+# --- AFTER LOGIN ---
 if st.session_state.registered:
     name = st.session_state.name
     st.success(f"Logged in as {name}")
 
+    # Tabs for company data, campaign history, and campaign generation
+    tab_company, tab_history, tab_generate = st.tabs(["🏢 Company Data", "📂 Campaign History", "🧠 Generate Campaign"])
+
     # --- COMPANY DATA ENTRY ---
-    if not st.session_state.company_data_entered:
+    with tab_company:
         st.header("🏢 Company Info")
         brand = st.text_input("Brand Name")
         overview = st.text_area("Brand Overview")
@@ -58,7 +62,7 @@ if st.session_state.registered:
         brief = st.text_area("Brief")
         persona = st.text_input("Target Persona")
         location = st.text_input("Location")
-        tone = st.selectbox("Tone", ["Professional", "Casual", "Funny"], key="tone_selectbox")
+        tone = st.selectbox("Tone", ["Professional", "Casual", "Funny"], key="tone")
         goal = st.text_input("Marketing Goal")
         cta = st.text_input("Call to Action")
         constraints = st.text_area("Constraints (comma separated)")
@@ -91,70 +95,72 @@ if st.session_state.registered:
                 st.error("Error saving company data")
 
     # --- CAMPAIGN HISTORY INPUT ---
-    st.header("🗄️ Past Campaign History (Optional)")
-    hist_product = st.text_input("Product")
-    hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="hist_channel")
-    hist_output_type = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="hist_output")
-    hist_result = st.text_area("Campaign Result")
-    hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"], key="hist_agent_created")
+    with tab_history:
+        st.header("🗄️ Past Campaign History (Optional)")
+        hist_product = st.text_input("Product", key="hist_product")
+        hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="hist_channel")
+        hist_output_type = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="hist_output_type")
+        hist_result = st.text_area("Campaign Result", key="hist_result")
+        hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"], key="hist_agent")
 
-    if st.button("📅 Submit Campaign History"):
-        payload = {
-            "name": name,
-            "product": hist_product,
-            "channel": hist_channel,
-            "output_type": hist_output_type,
-            "result": hist_result,
-            "agent_created": hist_agent == "Yes"
-        }
-        r = requests.post(f"{BASE_URL}/campaign/history", json=payload)
-        if r.status_code == 200:
-            st.success("History saved")
-        elif r.status_code == 429:
-            st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
-        else:
-            st.error("Failed to save campaign history")
+        if st.button("📅 Submit Campaign History"):
+            payload = {
+                "name": name,
+                "product": hist_product,
+                "channel": hist_channel,
+                "output_type": hist_output_type,
+                "result": hist_result,
+                "agent_created": hist_agent == "Yes"
+            }
+            r = requests.post(f"{BASE_URL}/campaign/history", json=payload)
+            if r.status_code == 200:
+                st.success("History saved")
+            elif r.status_code == 429:
+                st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
+            else:
+                st.error("Failed to save campaign history")
 
     # --- GENERATE CAMPAIGN ---
-    st.header("🏢 Generate Campaign Plan")
-    prod = st.text_input("Product (from your saved products)")
-    channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="gen_channel")
-    ctype = st.selectbox("Campaign Type", ["Awareness", "Conversion", "Retention"], key="gen_type")
-    otype = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="gen_output")
-    budget = st.text_input("Budget")
-    duration = st.text_input("Duration")
+    with tab_generate:
+        st.header("🧠 Generate Campaign Plan")
+        prod = st.text_input("Product (from your saved products)", key="gen_product")
+        channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="gen_channel")
+        ctype = st.selectbox("Campaign Type", ["Awareness", "Conversion", "Retention"], key="gen_type")
+        otype = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="gen_output")
+        budget = st.text_input("Budget", key="gen_budget")
+        duration = st.text_input("Duration", key="gen_duration")
 
-    if st.button("Generate Campaign"):
-        payload = {
-            "name": name,
-            "product": prod,
-            "channel": channel,
-            "campaign_type": ctype,
-            "output_type": otype,
-            "budget": budget,
-            "duration": duration
-        }
-        r = requests.post(f"{BASE_URL}/marketing/generate", json=payload)
-        if r.status_code == 200:
-            data = r.json()
-            st.success("Campaign Generated")
-            st.text_area("📋 Campaign Output", value=data.get("campaign_plan"), height=300)
+        if st.button("Generate Campaign"):
+            payload = {
+                "name": name,
+                "product": prod,
+                "channel": channel,
+                "campaign_type": ctype,
+                "output_type": otype,
+                "budget": budget,
+                "duration": duration
+            }
+            r = requests.post(f"{BASE_URL}/marketing/generate", json=payload)
+            if r.status_code == 200:
+                data = r.json()
+                st.success("Campaign Generated")
+                st.text_area("📋 Campaign Output", value=data.get("campaign_plan"), height=300)
 
-            # --- PDF Download ---
-            if st.button("📄 Download PDF"):
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", size=12)
-                pdf.multi_cell(0, 10, data.get("campaign_plan"))
+                # --- PDF Download ---
+                if st.button("📄 Download PDF"):
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial", size=12)
+                    pdf.multi_cell(0, 10, data.get("campaign_plan"))
 
-                pdf_bytes = pdf.output(dest='S').encode('latin-1')
-                st.download_button(
-                    label="Download Campaign PDF",
-                    data=pdf_bytes,
-                    file_name="campaign_plan.pdf",
-                    mime="application/pdf"
-                )
-        elif r.status_code == 429:
-            st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
-        else:
-            st.error("Error generating campaign")
+                    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                    st.download_button(
+                        label="Download Campaign PDF",
+                        data=pdf_bytes,
+                        file_name="campaign_plan.pdf",
+                        mime="application/pdf"
+                    )
+            elif r.status_code == 429:
+                st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
+            else:
+                st.error("Error generating campaign")
