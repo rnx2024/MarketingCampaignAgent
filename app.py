@@ -120,8 +120,8 @@ elif st.session_state.registered and st.session_state.api_key:
             st.subheader("🗄️ Record Campaign History")
 
             hist_product = st.text_input("Product", key="hist_product")
-            hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="hist_channel")
-            hist_output_type = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="hist_output_type")
+            hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube, "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="hist_channel")
+            hist_output_type = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads","Social Media Posts", "Campaign Plan", "Radio/TV Commerical" ], key="hist_output_type")
             hist_result = st.text_area("Campaign Result", key="hist_result")
             hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"], key="hist_agent")
 
@@ -151,9 +151,9 @@ elif st.session_state.registered and st.session_state.api_key:
             st.subheader("🧠 Generate Campaign Plan")
 
             prod = st.text_input("Product (from your saved products)", key="gen_product")
-            channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube"], key="gen_channel")
-            ctype = st.selectbox("Campaign Type", ["Awareness", "Conversion", "Retention"], key="gen_type")
-            otype = st.selectbox("Output Type", ["Script", "Email Copy", "Ad Copy"], key="gen_output")
+            channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube, "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="gen_channel")
+            ctype = st.selectbox("Campaign Type", ["Brand Awareness", "Lead Generation", "Product Launch", "Conversion", "Customer Retention", "Sales Promotion"], key="gen_ctype")
+            otype = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads","Social Media Posts", "Campaign Plan", "Radio/TV Commerical" ], key="gen_otype")
             budget = st.text_input("Budget", key="gen_budget")
             duration = st.text_input("Duration", key="gen_duration")
 
