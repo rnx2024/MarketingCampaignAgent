@@ -14,6 +14,8 @@ if "company_data_entered" not in st.session_state:
     st.session_state.company_data_entered = False
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
+if "name" not in st.session_state:
+    st.session_state.name = ""
 
 # --- REGISTER OR LOGIN ---
 st.title("📣 Campaign Generator")
@@ -23,17 +25,17 @@ if not st.session_state.registered:
 
     with tab1:
         st.subheader("🔐 Register")
-        name = st.text_input("Name", key="reg_name")
-        password = st.text_input("Password", type="password", key="reg_password")
-        apikey = st.text_input("API Key", key="reg_apikey")
+        reg_name = st.text_input("Name", key="reg_name")
+        reg_password = st.text_input("Password", type="password", key="reg_password")
+        reg_apikey = st.text_input("API Key", key="reg_apikey")
         if st.button("Register"):
-            payload = {"name": name, "password": password, "api_key": apikey}
+            payload = {"name": reg_name, "password": reg_password, "api_key": reg_apikey}
             r = requests.post(f"{BASE_URL}/register", json=payload)
             if r.status_code == 200:
                 st.success("Registered successfully")
                 st.session_state.registered = True
-                st.session_state.name = name
-                st.session_state.api_key = apikey
+                st.session_state.name = reg_name
+                st.session_state.api_key = reg_apikey
             elif r.status_code == 429:
                 st.warning("⏱️ Rate limit exceeded. Please wait and try again.")
             else:
@@ -41,15 +43,15 @@ if not st.session_state.registered:
 
     with tab2:
         st.subheader("🔑 Login")
-        name = st.text_input("Name (Login)", key="login_name")
-        apikey = st.text_input("API Key (Login)", key="login_apikey")
+        login_name = st.text_input("Name (Login)", key="login_name")
+        login_apikey = st.text_input("API Key (Login)", key="login_apikey")
         if st.button("Login"):
-            st.session_state.name = name
-            st.session_state.api_key = apikey
+            st.session_state.name = login_name
+            st.session_state.api_key = login_apikey
             st.session_state.registered = True
 
-# --- AFTER LOGIN ---
-if st.session_state.registered:
+# --- AFTER LOGIN & API KEY SET ---
+if st.session_state.registered and st.session_state.api_key:
     name = st.session_state.name
     st.success(f"Logged in as {name}")
 
@@ -65,10 +67,6 @@ if st.session_state.registered:
         target_customer = st.text_input("Target Customer (e.g. students, professionals)")
 
         if st.button("Submit Company Data"):
-            if "api_key" not in st.session_state or not st.session_state.api_key:
-                st.error("Missing API key. Please login again.")
-                st.stop()
-
             payload = {
                 "company_name": company_name,
                 "company_profile": company_profile,
