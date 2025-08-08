@@ -7,18 +7,16 @@ BASE_URL = "https://marketing-agent-v1-1.onrender.com/"
 st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
 
 # --- Session State Init ---
-if "session" not in st.session_state:
-    st.session_state.session = requests.Session()
-for key in ["registered", "company_data_entered", "just_registered", "logged_in", "name"]:
+for key in ["registered", "company_data_entered", "just_registered", "logged_in", "name", "cookies"]:
     if key not in st.session_state:
-        st.session_state[key] = False if key != "name" else ""
+        st.session_state[key] = False if key != "name" and key != "cookies" else ("" if key == "name" else {})
 
 # --- Utility: Handle Session Expiry ---
 def handle_session_expiry(response):
     if response.status_code == 403 and "Session expired" in response.text:
         st.warning("⚠️ Session expired. Please log in again.")
         st.session_state.logged_in = False
-        st.session_state.session = requests.Session()
+        st.session_state.cookies = {}
         st.experimental_rerun()
 
 # --- Title ---
@@ -50,27 +48,37 @@ if not st.session_state.logged_in:
         login_password = st.text_input("Password", type="password", key="login_password")
 
         if st.button("Login"):
-            payload = {"name": login_name, "password": login_password}
+            payload = {"name": login_name.strip(), "password": login_password}
             session = requests.Session()
             r = session.post(f"{BASE_URL}/login", json=payload)
             if r.status_code == 200:
-                st.session_state.session = session
-                st.session_state.name = login_name
-                st.session_state.logged_in = True
-                st.success(f"✅ Logged in as {login_name}")
+                token_cookie = r.cookies.get("token")
+                name_cookie = r.cookies.get("name")
+
+                if token_cookie and name_cookie:
+                    st.session_state.logged_in = True
+                    st.session_state.name = name_cookie
+                    st.session_state.cookies = {
+                        "token": token_cookie,
+                        "name": name_cookie
+                    }
+                    st.success(f"✅ Logged in as {name_cookie}")
+                else:
+                    st.error("Login failed: session cookies missing")
             elif r.status_code == 404:
-                st.warning("\U0001f195 User not found. Please register first.")
+                st.warning("🆔 User not found. Please register first.")
             elif r.status_code == 401:
                 st.error("❌ Incorrect password.")
             elif r.status_code == 429:
                 st.warning("⏱️ Too many attempts. Please wait.")
             else:
-                st.error("⚠️ Login failed.")        
+                st.error("⚠️ Login failed.")
 
 # --- AFTER LOGIN ---
 elif st.session_state.logged_in:
     name = st.session_state.name
-    session = st.session_state.session
+    cookies = st.session_state.cookies
+    session = requests.Session()
     st.success(f"✅ Logged in as {name}")
 
     tab_company, tab_history, tab_generate = st.tabs([
@@ -94,7 +102,7 @@ elif st.session_state.logged_in:
                     "location": location,
                     "target_customer": target_customer
                 }
-                r = session.post(f"{BASE_URL}/company", json=payload, headers={"name": name})
+                r = session.post(f"{BASE_URL}/company", json=payload, headers={"name": name}, cookies=cookies)
                 handle_session_expiry(r)
                 if r.status_code == 200:
                     st.success("✅ Company data saved")
@@ -102,7 +110,7 @@ elif st.session_state.logged_in:
                 else:
                     st.error("Error saving company data")
         else:
-            r = session.get(f"{BASE_URL}/company", headers={"name": name})
+            r = session.get(f"{BASE_URL}/company", headers={"name": name}, cookies=cookies)
             handle_session_expiry(r)
             if r.status_code == 200:
                 company = r.json()
@@ -122,7 +130,7 @@ elif st.session_state.logged_in:
             st.subheader("🗄️ Record Campaign History")
             hist_product = st.text_input("Product")
             hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"])
-            hist_output_type = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads","Social Media Posts", "Campaign Plan", "Radio/TV Commerical"])
+            hist_output_type = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads", "Social Media Posts", "Campaign Plan", "Radio/TV Commerical"])
             hist_result = st.text_area("Campaign Result")
             hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"])
 
@@ -134,7 +142,7 @@ elif st.session_state.logged_in:
                     "result": hist_result,
                     "agent_created": hist_agent == "Yes"
                 }
-                r = session.post(f"{BASE_URL}/campaign/history", json=payload, headers={"name": name})
+                r = session.post(f"{BASE_URL}/campaign/history", json=payload, headers={"name": name}, cookies=cookies)
                 handle_session_expiry(r)
                 if r.status_code == 200:
                     st.success("✅ Campaign history saved")
@@ -149,7 +157,7 @@ elif st.session_state.logged_in:
             prod = st.text_input("Product")
             channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"])
             ctype = st.selectbox("Campaign Type", ["Brand Awareness", "Lead Generation", "Product Launch", "Conversion", "Customer Retention", "Sales Promotion"])
-            otype = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads","Social Media Posts", "Campaign Plan", "Radio/TV Commerical"])
+            otype = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads", "Social Media Posts", "Campaign Plan", "Radio/TV Commerical"])
             budget = st.text_input("Budget")
             duration = st.text_input("Duration")
 
@@ -162,7 +170,7 @@ elif st.session_state.logged_in:
                     "budget": budget,
                     "duration": duration
                 }
-                r = session.post(f"{BASE_URL}/marketing/generate", json=payload, headers={"name": name})
+                r = session.post(f"{BASE_URL}/marketing/generate", json=payload, headers={"name": name}, cookies=cookies)
                 handle_session_expiry(r)
                 if r.status_code == 200:
                     data = r.json()
