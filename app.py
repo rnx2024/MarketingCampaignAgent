@@ -41,28 +41,26 @@ if not st.session_state.logged_in:
             else:
                 st.error(r.json().get("detail", "Registration failed."))
 
-    with tab2:
-        st.subheader("🔑 Login")
-        login_name = st.text_input("Name", key="login_name")
-        login_password = st.text_input("Password", type="password", key="login_password")
+    # -- LOGIN TAB --
+with tab2:
+    st.subheader("🔑 Login")
+    login_name = st.text_input("Name", key="login_name")
+    login_password = st.text_input("Password", type="password", key="login_password")
 
-        if st.button("Login"):
-            payload = {"name": login_name, "password": login_password}
-            session = requests.Session()
-            r = session.post(f"{BASE_URL}/login", json=payload)
+    if st.button("Login"):
+        payload = {"name": login_name, "password": login_password}
+        session = requests.Session()
+        r = session.post(f"{BASE_URL}/login", json=payload)
 
-            if r.status_code == 200:
-                st.session_state.session = session
-                st.session_state.name = login_name
-                st.session_state.logged_in = True
-                st.session_state.registered = True
-                st.session_state.just_registered = False
-                st.success(f"✅ Logged in as {login_name}")
-            else:
-                st.error("Invalid credentials or login failed.")
-
-    if st.session_state.just_registered:
-        st.info("✅ Now go to the Login tab and log in.")
+        if r.status_code == 200:
+            st.session_state.session = session
+            st.session_state.name = login_name
+            st.session_state.logged_in = True
+            st.session_state.registered = True
+            st.session_state.just_registered = False
+            st.success(f"✅ Logged in as {login_name}")
+        else:
+            st.error("Invalid credentials or login failed.")
 
 # --- AFTER LOGIN ---
 elif st.session_state.logged_in:
