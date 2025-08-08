@@ -65,10 +65,7 @@ if not st.session_state.logged_in:
             elif r.status_code == 429:
                 st.warning("⏱️ Too many attempts. Please wait.")
             else:
-                st.error("⚠️ Login failed.")
-
-    if st.session_state.just_registered:
-        st.info("✅ Now go to the Login tab and log in.")
+                st.error("⚠️ Login failed.")        
 
 # --- AFTER LOGIN ---
 elif st.session_state.logged_in:
