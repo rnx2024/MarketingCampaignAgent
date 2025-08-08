@@ -28,10 +28,10 @@ if not st.session_state.logged_in:
 
     with tab1:
         st.subheader("🔐 Register")
-        reg_name = st.text_input("Name", key="reg_name")
-        reg_password = st.text_input("Password", type="password", key="reg_password")
-        reg_apikey = st.text_input("API Key", key="reg_apikey")
-        if st.button("Register"):
+        reg_name = st.text_input("Name", key="reg_name_input")
+        reg_password = st.text_input("Password", type="password", key="reg_password_input")
+        reg_apikey = st.text_input("API Key", key="reg_apikey_input")
+        if st.button("Register", key="register_button"):
             payload = {"name": reg_name, "password": reg_password, "api_key": reg_apikey}
             r = requests.post(f"{BASE_URL}/register", json=payload)
             if r.status_code == 200:
@@ -44,10 +44,10 @@ if not st.session_state.logged_in:
 
     with tab2:
         st.subheader("🔑 Login")
-        login_name = st.text_input("Name", key="login_name")
-        login_password = st.text_input("Password", type="password", key="login_password")
+        login_name = st.text_input("Name", key="login_name_input")
+        login_password = st.text_input("Password", type="password", key="login_password_input")
 
-        if st.button("Login"):
+        if st.button("Login", key="login_button"):
             payload = {"name": login_name.strip(), "password": login_password}
             session = requests.Session()
             r = session.post(f"{BASE_URL}/login", json=payload)
@@ -74,17 +74,6 @@ if not st.session_state.logged_in:
             else:
                 st.error("⚠️ Login failed.")
 
-if st.button("Login"):
-    payload = {"name": login_name.strip(), "password": login_password}
-    session = requests.Session()
-    r = session.post(f"{BASE_URL}/login", json=payload)
-    
-    st.write("DEBUG STATUS", r.status_code)
-    st.write("DEBUG COOKIES", r.cookies.get_dict())
-    st.write("DEBUG HEADERS", r.headers)
-
-    ...
-
 # --- AFTER LOGIN ---
 elif st.session_state.logged_in:
     name = st.session_state.name
@@ -99,13 +88,13 @@ elif st.session_state.logged_in:
     with tab_company:
         st.header("🏢 Company Info")
         if not st.session_state.company_data_entered:
-            company_name = st.text_input("Company Name")
-            company_profile = st.text_area("Company Profile")
-            products = st.text_input("Main Products (comma-separated)")
-            location = st.text_input("Location")
-            target_customer = st.text_input("Target Customer")
+            company_name = st.text_input("Company Name", key="company_name_input")
+            company_profile = st.text_area("Company Profile", key="company_profile_input")
+            products = st.text_input("Main Products (comma-separated)", key="products_input")
+            location = st.text_input("Location", key="location_input")
+            target_customer = st.text_input("Target Customer", key="target_customer_input")
 
-            if st.button("Submit Company Data"):
+            if st.button("Submit Company Data", key="submit_company_button"):
                 payload = {
                     "company_name": company_name,
                     "company_profile": company_profile,
@@ -139,13 +128,13 @@ elif st.session_state.logged_in:
             st.info("📂 Submit company data first.")
         else:
             st.subheader("🗄️ Record Campaign History")
-            hist_product = st.text_input("Product")
-            hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"])
-            hist_output_type = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads", "Social Media Posts", "Campaign Plan", "Radio/TV Commerical"])
-            hist_result = st.text_area("Campaign Result")
-            hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"])
+            hist_product = st.text_input("Product", key="hist_product_input")
+            hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="hist_channel_select")
+            hist_output_type = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads", "Social Media Posts", "Campaign Plan", "Radio/TV Commerical"], key="hist_output_type_select")
+            hist_result = st.text_area("Campaign Result", key="hist_result_input")
+            hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"], key="hist_agent_select")
 
-            if st.button("🗕️ Submit Campaign History"):
+            if st.button("🗕️ Submit Campaign History", key="submit_history_button"):
                 payload = {
                     "product": hist_product,
                     "channel": hist_channel,
@@ -165,14 +154,14 @@ elif st.session_state.logged_in:
             st.info("🧠 Submit company data first.")
         else:
             st.subheader("🧠 Generate Campaign Plan")
-            prod = st.text_input("Product")
-            channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"])
-            ctype = st.selectbox("Campaign Type", ["Brand Awareness", "Lead Generation", "Product Launch", "Conversion", "Customer Retention", "Sales Promotion"])
-            otype = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads", "Social Media Posts", "Campaign Plan", "Radio/TV Commerical"])
-            budget = st.text_input("Budget")
-            duration = st.text_input("Duration")
+            prod = st.text_input("Product", key="gen_product_input")
+            channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="gen_channel_select")
+            ctype = st.selectbox("Campaign Type", ["Brand Awareness", "Lead Generation", "Product Launch", "Conversion", "Customer Retention", "Sales Promotion"], key="gen_campaign_type_select")
+            otype = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads", "Social Media Posts", "Campaign Plan", "Radio/TV Commerical"], key="gen_output_type_select")
+            budget = st.text_input("Budget", key="gen_budget_input")
+            duration = st.text_input("Duration", key="gen_duration_input")
 
-            if st.button("Generate Campaign"):
+            if st.button("Generate Campaign", key="generate_campaign_button"):
                 payload = {
                     "product": prod,
                     "channel": channel,
@@ -186,9 +175,9 @@ elif st.session_state.logged_in:
                 if r.status_code == 200:
                     data = r.json()
                     st.success("✅ Campaign Generated")
-                    st.text_area("📋 Campaign Output", value=data.get("result", ""), height=300)
+                    st.text_area("📋 Campaign Output", value=data.get("result", ""), height=300, key="gen_result_output")
 
-                    if st.button("📄 Download PDF"):
+                    if st.button("📄 Download PDF", key="download_pdf_button"):
                         pdf = FPDF()
                         pdf.add_page()
                         pdf.set_font("Arial", size=12)
@@ -198,7 +187,8 @@ elif st.session_state.logged_in:
                             label="Download Campaign PDF",
                             data=pdf_bytes,
                             file_name="campaign_plan.pdf",
-                            mime="application/pdf"
+                            mime="application/pdf",
+                            key="pdf_download_btn"
                         )
                 else:
                     st.error("❌ Error generating campaign")
