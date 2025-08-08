@@ -74,6 +74,17 @@ if not st.session_state.logged_in:
             else:
                 st.error("⚠️ Login failed.")
 
+if st.button("Login"):
+    payload = {"name": login_name.strip(), "password": login_password}
+    session = requests.Session()
+    r = session.post(f"{BASE_URL}/login", json=payload)
+    
+    st.write("DEBUG STATUS", r.status_code)
+    st.write("DEBUG COOKIES", r.cookies.get_dict())
+    st.write("DEBUG HEADERS", r.headers)
+
+    ...
+
 # --- AFTER LOGIN ---
 elif st.session_state.logged_in:
     name = st.session_state.name
