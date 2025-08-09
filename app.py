@@ -1,194 +1,434 @@
-import streamlit as st
+# streamlit_app.py
+import json
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional, List
+
 import requests
-from fpdf import FPDF
+import streamlit as st
 
-BASE_URL = "https://marketing-agent-v1-1.onrender.com/"
+# -----------------------------------------------------------------------------
+# Config
+# -----------------------------------------------------------------------------
+API_BASE_URL = st.secrets.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
 
-st.set_page_config(page_title="Marketing Agent", layout="centered", page_icon="📣")
+EP = {
+    "register": f"{API_BASE_URL}/register",
+    "login": f"{API_BASE_URL}/login",
+    "company_get": f"{API_BASE_URL}/company",
+    "company_post": f"{API_BASE_URL}/company",
+    "campaign_generate": f"{API_BASE_URL}/marketing/generate",
+    "campaigns": f"{API_BASE_URL}/campaigns",
+    "campaign_update_base": f"{API_BASE_URL}/campaign",                 # PATCH /campaign/{id}/status
+    "monthly_overview": f"{API_BASE_URL}/campaign/overview/monthly",
+}
 
-# --- Session State Init ---
-for key in ["registered", "company_data_entered", "just_registered", "logged_in", "name", "cookies"]:
-    if key not in st.session_state:
-        st.session_state[key] = False if key != "name" and key != "cookies" else ("" if key == "name" else {})
+# Enumerations (adjust if you have a constants endpoint later)
+CAMPAIGN_TYPES = [
+    "Brand Awareness",
+    "Lead Generation",
+    "Product Launch",
+    "Retention",
+    "Seasonal/Promo",
+]
+CHANNELS = [
+    "Instagram Ads",
+    "Facebook Ads",
+    "TikTok Ads",
+    "Google Ads",
+    "Email",
+    "LinkedIn",
+]
+OUTPUT_TYPES = [
+    "Social Media Post Series",
+    "Ad Creatives",
+    "Email Sequence",
+    "Landing Page Brief",
+    "Blog Series",
+    "Video Scripts"        
+]
 
-# --- Utility: Handle Session Expiry ---
-def handle_session_expiry(response):
-    if response.status_code == 403 and "Session expired" in response.text:
-        st.warning("⚠️ Session expired. Please log in again.")
-        st.session_state.logged_in = False
-        st.session_state.cookies = {}
-        st.experimental_rerun()
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+def auth_headers() -> Dict[str, str]:
+    headers = {}
+    if st.session_state.get("name"):
+        headers["name"] = st.session_state["name"]
+    if st.session_state.get("token"):
+        headers["token"] = st.session_state["token"]
+    return headers
 
-# --- Title ---
-st.title("📣 Campaign Generator")
+def is_authenticated() -> bool:
+    name = st.session_state.get("name")
+    token = st.session_state.get("token")
+    expires_at = st.session_state.get("expires_at")
+    if not (name and token and expires_at):
+        return False
+    try:
+        exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) < exp
+    except Exception:
+        return False
 
-# --- BEFORE LOGIN ---
-if not st.session_state.logged_in:
-    tab1, tab2 = st.tabs(["Register", "Login"])
+def require_auth_gate():
+    if not is_authenticated():
+        st.warning("You’re not logged in or your session expired. Please log in.")
+        st.stop()
 
-    with tab1:
-        st.subheader("🔐 Register")
-        reg_name = st.text_input("Name", key="reg_name_input")
-        reg_password = st.text_input("Password", type="password", key="reg_password_input")
-        reg_apikey = st.text_input("API Key", key="reg_apikey_input")
-        if st.button("Register", key="register_button"):
-            payload = {"name": reg_name, "password": reg_password, "api_key": reg_apikey}
-            r = requests.post(f"{BASE_URL}/register", json=payload)
-            if r.status_code == 200:
-                st.success("Registered successfully. Please log in.")
-                st.session_state.just_registered = True
-            elif r.status_code == 429:
-                st.warning("⏱️ Rate limit exceeded.")
-            else:
-                st.error(r.json().get("detail", "Registration failed."))
+def http_get(url: str, params: Optional[Dict[str, Any]] = None, needs_auth: bool = False):
+    headers = auth_headers() if needs_auth else {}
+    return requests.get(url, params=params, headers=headers, timeout=60)
 
-    with tab2:
-        st.subheader("🔑 Login")
-        login_name = st.text_input("Name", key="login_name_input")
-        login_password = st.text_input("Password", type="password", key="login_password_input")
+def http_post(url: str, json_payload: Dict[str, Any], needs_auth: bool = False):
+    headers = auth_headers() if needs_auth else {}
+    return requests.post(url, json=json_payload, headers=headers, timeout=60)
 
-        if st.button("Login", key="login_button"):
-            payload = {"name": login_name.strip(), "password": login_password}
-            session = requests.Session()
-            r = session.post(f"{BASE_URL}/login", json=payload)
-            if r.status_code == 200:
-                token_cookie = r.cookies.get("token")
-                name_cookie = r.cookies.get("name")
+def http_patch(url: str, json_payload: Dict[str, Any], needs_auth: bool = False):
+    headers = auth_headers() if needs_auth else {}
+    return requests.patch(url, json=json_payload, headers=headers, timeout=60)
 
-                if token_cookie and name_cookie:
-                    st.session_state.logged_in = True
-                    st.session_state.name = name_cookie
-                    st.session_state.cookies = {
-                        "token": token_cookie,
-                        "name": name_cookie
-                    }
-                    st.success(f"✅ Logged in as {name_cookie}")
+def to_list_from_products_field(products_field: str | list) -> List[str]:
+    if isinstance(products_field, list):
+        return [str(x) for x in products_field]
+    if isinstance(products_field, str):
+        try:
+            data = json.loads(products_field)
+            if isinstance(data, list):
+                return [str(x) for x in data]
+        except Exception:
+            pass
+        return [p.strip() for p in products_field.split(",") if p.strip()]
+    return []
+
+def to_backend_products_field(products: List[str]) -> str:
+    # Your backend accepts a string; if you later standardize to JSON, change here.
+    # Keeping JSON string is convenient if you already use it.
+    return json.dumps(products, ensure_ascii=False)
+
+# -----------------------------------------------------------------------------
+# Session init
+# -----------------------------------------------------------------------------
+st.set_page_config(page_title="Marketing Campaign Agent", page_icon="📈", layout="wide")
+for k in ["name", "token", "expires_at", "company_cache", "products_cache", "history_cache"]:
+    st.session_state.setdefault(k, None)
+
+st.title("Marketing Campaign Agent")
+
+# -----------------------------------------------------------------------------
+# Tabs
+# -----------------------------------------------------------------------------
+auth_tab, app_tab = st.tabs(["Auth", "App"])
+
+# =========================
+# Auth
+# =========================
+with auth_tab:
+    reg_tab, login_tab = st.tabs(["Register", "Login"])
+
+    with reg_tab:
+        with st.form("register_form", clear_on_submit=False):
+            st.subheader("Register")
+            r_name = st.text_input("Name")
+            r_email = st.text_input("Email")
+            r_password = st.text_input("Password", type="password")
+            r_api_key = st.text_input("API Key")
+            r_submit = st.form_submit_button("Register")
+        if r_submit:
+            payload = {
+                "name": r_name.strip(),
+                "password": r_password,
+                "email": r_email.strip(),
+                "api_key": r_api_key.strip(),
+            }
+            try:
+                resp = http_post(EP["register"], payload)
+                if resp.status_code == 200:
+                    st.success("Registered successfully. You can now log in.")
+                elif resp.status_code in (403, 409, 422):
+                    st.error(f"Registration failed ({resp.status_code}): {resp.text}")
                 else:
-                    st.error("Login failed: session cookies missing")
-            elif r.status_code == 404:
-                st.warning("🆔 User not found. Please register first.")
-            elif r.status_code == 401:
-                st.error("❌ Incorrect password.")
-            elif r.status_code == 429:
-                st.warning("⏱️ Too many attempts. Please wait.")
-            else:
-                st.error("⚠️ Login failed.")
+                    st.error(f"Unexpected response ({resp.status_code}): {resp.text}")
+            except requests.RequestException as e:
+                st.error(f"Network error during registration: {e}")
 
-# --- AFTER LOGIN ---
-elif st.session_state.logged_in:
-    name = st.session_state.name
-    cookies = st.session_state.cookies
-    session = requests.Session()
-    st.success(f"✅ Logged in as {name}")
+    with login_tab:
+        with st.form("login_form", clear_on_submit=False):
+            st.subheader("Login")
+            l_name = st.text_input("Name")
+            l_password = st.text_input("Password", type="password")
+            l_submit = st.form_submit_button("Login")
+        if l_submit:
+            payload = {"name": l_name.strip(), "password": l_password}
+            try:
+                resp = http_post(EP["login"], payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    st.session_state["name"] = l_name.strip()
+                    st.session_state["token"] = data.get("token")
+                    st.session_state["expires_at"] = data.get("expires_at")
+                    if is_authenticated():
+                        st.success("Logged in.")
+                    else:
+                        st.error("Login response missing/invalid token or expiry.")
+                elif resp.status_code in (401, 404):
+                    st.error(f"Login failed ({resp.status_code}): {resp.text}")
+                else:
+                    st.error(f"Unexpected response ({resp.status_code}): {resp.text}")
+            except requests.RequestException as e:
+                st.error(f"Network error during login: {e}")
 
-    tab_company, tab_history, tab_generate = st.tabs([
-        "🏢 Company Data", "📂 Campaign History", "🧠 Generate Campaign"
-    ])
+# =========================
+# App
+# =========================
+with app_tab:
+    if not is_authenticated():
+        st.info("Please log in to access the app.")
+        st.stop()
 
-    with tab_company:
-        st.header("🏢 Company Info")
-        if not st.session_state.company_data_entered:
-            company_name = st.text_input("Company Name", key="company_name_input")
-            company_profile = st.text_area("Company Profile", key="company_profile_input")
-            products = st.text_input("Main Products (comma-separated)", key="products_input")
-            location = st.text_input("Location", key="location_input")
-            target_customer = st.text_input("Target Customer", key="target_customer_input")
+    company_tab, campaigns_tab, reports_tab = st.tabs(["Company", "Campaigns", "Reports"])
 
-            if st.button("Submit Company Data", key="submit_company_button"):
-                payload = {
-                    "company_name": company_name,
-                    "company_profile": company_profile,
-                    "products": products,
-                    "location": location,
-                    "target_customer": target_customer
-                }
-                r = session.post(f"{BASE_URL}/company", json=payload, headers={"name": name}, cookies=cookies)
-                handle_session_expiry(r)
+    # ----------------------
+    # Company
+    # ----------------------
+    with company_tab:
+        st.subheader("Company")
+        # Load once per session (cache)
+        if st.session_state["company_cache"] is None:
+            try:
+                r = http_get(EP["company_get"], needs_auth=True)
                 if r.status_code == 200:
-                    st.success("✅ Company data saved")
-                    st.session_state.company_data_entered = True
+                    st.session_state["company_cache"] = r.json()
+                elif r.status_code == 404:
+                    st.session_state["company_cache"] = None
                 else:
-                    st.error("Error saving company data")
+                    st.warning(f"Company fetch returned {r.status_code}: {r.text}")
+            except requests.RequestException as e:
+                st.error(f"Network error fetching company: {e}")
+
+        company = st.session_state["company_cache"]
+
+        if company:
+            products = to_list_from_products_field(company.get("products", ""))
+            st.session_state["products_cache"] = products
+            with st.expander("Company Data", expanded=True):
+                st.write(f"**Company:** {company.get('company_name','')}")
+                st.write(f"**Location:** {company.get('location','')}")
+                st.write(f"**Target Customer:** {company.get('target_customer','')}")
+                st.write("**Products:**")
+                if products:
+                    for p in products:
+                        st.write(f"- {p}")
+                else:
+                    st.write("- None")
+                st.write("**Profile:**")
+                st.markdown(company.get("company_profile", "") or "_No profile_")
+            st.info("Company data set. You can generate campaigns or view history.")
         else:
-            r = session.get(f"{BASE_URL}/company", headers={"name": name}, cookies=cookies)
-            handle_session_expiry(r)
-            if r.status_code == 200:
-                company = r.json()
-                st.subheader("📄 Submitted Company Info")
-                st.markdown(f"**Company Name**: {company['company_name']}")
-                st.markdown(f"**Company Profile**: {company['company_profile']}")
-                st.markdown(f"**Products**: {company['products']}")
-                st.markdown(f"**Location**: {company['location']}")
-                st.markdown(f"**Target Customer**: {company['target_customer']}")
+            st.warning("No company data yet. Enter your company details once.")
+            with st.form("company_form", clear_on_submit=False):
+                c_name = st.text_input("Company Name")
+                c_profile = st.text_area("Company Profile", height=180)
+                c_products_text = st.text_area(
+                    "Products (one per line)",
+                    placeholder="Product A\nProduct B\nProduct C",
+                    height=120,
+                )
+                c_location = st.text_input("Location")
+                c_target = st.text_input("Target Customer")
+                c_submit = st.form_submit_button("Save Company")
+            if c_submit:
+                products_list = [p.strip() for p in c_products_text.splitlines() if p.strip()]
+                payload = {
+                    "company_name": c_name.strip(),
+                    "company_profile": c_profile.strip(),
+                    "products": to_backend_products_field(products_list),
+                    "location": c_location.strip(),
+                    "target_customer": c_target.strip(),
+                }
+                try:
+                    r = http_post(EP["company_post"], payload, needs_auth=True)
+                    if r.status_code == 200:
+                        st.success("Company saved.")
+                        st.session_state["company_cache"] = payload
+                        st.session_state["products_cache"] = products_list
+                    else:
+                        st.error(f"Save failed ({r.status_code}): {r.text}")
+                except requests.RequestException as e:
+                    st.error(f"Network error saving company: {e}")
+
+    # ----------------------
+    # Campaigns
+    # ----------------------
+    with campaigns_tab:
+        gen_tab, history_tab = st.tabs(["Generate", "History & Update"])
+
+        # Generate
+        with gen_tab:
+            st.subheader("Generate Campaign")
+            require_auth_gate()
+
+            if st.session_state["company_cache"] is None:
+                st.error("Add company data first (Company tab).")
+                st.stop()
+
+            products = st.session_state.get("products_cache") or to_list_from_products_field(
+                st.session_state["company_cache"].get("products", "")
+            )
+            if not products:
+                st.error("No products found. Update company products.")
+                st.stop()
+
+            with st.form("generate_form", clear_on_submit=False):
+                g_product = st.selectbox("Product", options=products)
+                g_type = st.selectbox("Campaign Type", options=CAMPAIGN_TYPES)
+                g_channel = st.selectbox("Channel", options=CHANNELS)
+                g_output = st.selectbox("Output Type", options=OUTPUT_TYPES)
+                g_duration = st.text_input("Duration", placeholder="e.g., 3 months")
+                g_budget = st.text_input("Budget", placeholder="e.g., $5,000")
+                g_submit = st.form_submit_button("Generate")
+            if g_submit:
+                payload = {
+                    "product": g_product,
+                    "campaign_type": g_type,
+                    "channel": g_channel,
+                    "output_type": g_output,
+                    "duration": g_duration.strip(),
+                    "budget": g_budget.strip(),
+                }
+                try:
+                    r = http_post(EP["campaign_generate"], payload, needs_auth=True)
+                    if r.status_code == 200:
+                        data = r.json()
+                        st.success("Campaign generated and saved (status: pending).")
+                        with st.expander("Generated Campaign", expanded=True):
+                            st.json(data)
+                    else:
+                        st.error(f"Generate failed ({r.status_code}): {r.text}")
+                except requests.RequestException as e:
+                    st.error(f"Network error generating campaign: {e}")
+
+        # History & Update
+        with history_tab:
+            st.subheader("Campaign History & Update")
+            require_auth_gate()
+
+            products = st.session_state.get("products_cache") or []
+            c1, c2, c3 = st.columns([1, 1, 0.5])
+            with c1:
+                h_date = st.date_input("Date (YYYY-MM-DD)", format="YYYY-MM-DD")
+            with c2:
+                h_product = st.selectbox("Product", options=["(All)"] + products)
+            with c3:
+                refresh = st.button("Refresh")
+
+            def fetch_history():
+                params = {}
+                if h_date:
+                    params["date"] = h_date.isoformat()
+                if h_product and h_product != "(All)":
+                    params["product"] = h_product
+                try:
+                    r = http_get(EP["campaigns"], params=params, needs_auth=True)
+                    if r.status_code == 200:
+                        return r.json()
+                    elif r.status_code == 404:
+                        return []
+                    else:
+                        st.error(f"History fetch returned {r.status_code}: {r.text}")
+                        return []
+                except requests.RequestException as e:
+                    st.error(f"Network error fetching history: {e}")
+                    return []
+
+            if refresh or st.session_state.get("history_cache") is None:
+                st.session_state["history_cache"] = fetch_history()
+            history = st.session_state["history_cache"]
+
+            if not history:
+                st.info("No campaigns found for the selected filters.")
             else:
-                st.error("⚠️ Failed to load company data.")
+                for row in history:
+                    header = f"[{row.get('created_at','')}] {row.get('product','')} • {row.get('campaign_type','')} • {row.get('status','')}"
+                    with st.expander(header, expanded=False):
+                        st.write(f"**Product:** {row.get('product','')}")
+                        st.write(f"**Campaign Type:** {row.get('campaign_type','')}")
+                        st.write(f"**Channel:** {row.get('channel','')}")
+                        st.write(f"**Duration:** {row.get('duration','')}")
+                        st.write(f"**Budget:** {row.get('budget','')}")
+                        st.write(f"**Status:** {row.get('status','')}")
+                        st.write("**Plan:**")
+                        st.markdown(row.get("plan", "") or "_No plan text_")
+                        st.write("**Result Notes:**")
+                        st.write(row.get("result_notes", "") or "_None_")
 
-    with tab_history:
-        if not st.session_state.company_data_entered:
-            st.info("📂 Submit company data first.")
-        else:
-            st.subheader("🗄️ Record Campaign History")
-            hist_product = st.text_input("Product", key="hist_product_input")
-            hist_channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="hist_channel_select")
-            hist_output_type = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads", "Social Media Posts", "Campaign Plan", "Radio/TV Commerical"], key="hist_output_type_select")
-            hist_result = st.text_area("Campaign Result", key="hist_result_input")
-            hist_agent = st.selectbox("Created by Agent?", ["Yes", "No"], key="hist_agent_select")
+                        st.markdown("---")
+                        st.write("**Update Status** (requires both fields)")
+                        form_key = f"upd_{row.get('id')}"
+                        with st.form(form_key):
+                            new_status = st.selectbox(
+                                "Status",
+                                options=["started", "finished"],
+                                index=0,
+                                key=f"status_{row.get('id')}"
+                            )
+                            new_notes = st.text_area(
+                                "Result Notes",
+                                key=f"notes_{row.get('id')}",
+                                placeholder="Add concrete outcomes, metrics, learnings…",
+                            )
+                            upd_btn = st.form_submit_button("Save Update")
 
-            if st.button("🗕️ Submit Campaign History", key="submit_history_button"):
-                payload = {
-                    "product": hist_product,
-                    "channel": hist_channel,
-                    "output_type": hist_output_type,
-                    "result": hist_result,
-                    "agent_created": hist_agent == "Yes"
-                }
-                r = session.post(f"{BASE_URL}/campaign/history", json=payload, headers={"name": name}, cookies=cookies)
-                handle_session_expiry(r)
+                        if upd_btn:
+                            if not (new_status and new_notes.strip()):
+                                st.error("Both status and result_notes are required.")
+                            else:
+                                payload = {
+                                    "status": new_status,
+                                    "result_notes": new_notes.strip(),
+                                }
+                                # pass current filters as guards if set
+                                if h_date:
+                                    payload["date"] = h_date.isoformat()
+                                if h_product and h_product != "(All)":
+                                    payload["product"] = h_product
+
+                                try:
+                                    url = f"{EP['campaign_update_base']}/{row.get('id')}/status"
+                                    r = http_patch(url, payload, needs_auth=True)
+                                    if r.status_code == 200:
+                                        st.success("Campaign updated.")
+                                        st.session_state["history_cache"] = fetch_history()
+                                    else:
+                                        st.error(f"Update failed ({r.status_code}): {r.text}")
+                                except requests.RequestException as e:
+                                    st.error(f"Network error updating campaign: {e}")
+
+    # ----------------------
+    # Reports
+    # ----------------------
+    with reports_tab:
+        st.subheader("Monthly Overview")
+        require_auth_gate()
+
+        if st.button("Load Overview"):
+            try:
+                r = http_get(EP["monthly_overview"], needs_auth=True)
                 if r.status_code == 200:
-                    st.success("✅ Campaign history saved")
+                    overview = r.json()
+                    if not overview:
+                        st.info("No monthly data yet.")
+                    else:
+                        # Show latest month metrics if available
+                        try:
+                            latest = sorted(overview, key=lambda x: x.get("month", ""))[-1]
+                            c1, c2 = st.columns(2)
+                            c1.metric("Generated (latest month)", latest.get("total_generated", 0))
+                            c2.metric("Finished (latest month)", latest.get("total_finished", 0))
+                        except Exception:
+                            pass
+                        st.markdown("#### Monthly Stats")
+                        st.dataframe(overview, use_container_width=True)
                 else:
-                    st.error("❌ Failed to save campaign history")
-
-    with tab_generate:
-        if not st.session_state.company_data_entered:
-            st.info("🧠 Submit company data first.")
-        else:
-            st.subheader("🧠 Generate Campaign Plan")
-            prod = st.text_input("Product", key="gen_product_input")
-            channel = st.selectbox("Channel", ["Facebook", "Instagram", "Email", "YouTube", "Tiktok", "Social Media", "Radio", "TV", "All Media"], key="gen_channel_select")
-            ctype = st.selectbox("Campaign Type", ["Brand Awareness", "Lead Generation", "Product Launch", "Conversion", "Customer Retention", "Sales Promotion"], key="gen_campaign_type_select")
-            otype = st.selectbox("Output Type", ["Video Script", "Email Copy", "Facebook Ads", "Google Ads", "Social Media Posts", "Campaign Plan", "Radio/TV Commerical"], key="gen_output_type_select")
-            budget = st.text_input("Budget", key="gen_budget_input")
-            duration = st.text_input("Duration", key="gen_duration_input")
-
-            if st.button("Generate Campaign", key="generate_campaign_button"):
-                payload = {
-                    "product": prod,
-                    "channel": channel,
-                    "campaign_type": ctype,
-                    "output_type": otype,
-                    "budget": budget,
-                    "duration": duration
-                }
-                r = session.post(f"{BASE_URL}/marketing/generate", json=payload, headers={"name": name}, cookies=cookies)
-                handle_session_expiry(r)
-                if r.status_code == 200:
-                    data = r.json()
-                    st.success("✅ Campaign Generated")
-                    st.text_area("📋 Campaign Output", value=data.get("result", ""), height=300, key="gen_result_output")
-
-                    if st.button("📄 Download PDF", key="download_pdf_button"):
-                        pdf = FPDF()
-                        pdf.add_page()
-                        pdf.set_font("Arial", size=12)
-                        pdf.multi_cell(0, 10, data.get("result", ""))
-                        pdf_bytes = pdf.output(dest='S').encode('latin-1')
-                        st.download_button(
-                            label="Download Campaign PDF",
-                            data=pdf_bytes,
-                            file_name="campaign_plan.pdf",
-                            mime="application/pdf",
-                            key="pdf_download_btn"
-                        )
-                else:
-                    st.error("❌ Error generating campaign")
+                    st.error(f"Overview returned {r.status_code}: {r.text}")
+            except requests.RequestException as e:
+                st.error(f"Network error fetching overview: {e}")
