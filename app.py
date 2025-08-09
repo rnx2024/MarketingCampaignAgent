@@ -333,152 +333,111 @@ with app_tab:
                         st.error(f"Save failed ({r.status_code}): {r.text}")
 
 
+       # ----------------------
+    # Company
     # ----------------------
-    # Campaigns
-    # ----------------------
-    with campaigns_tab:
-        gen_tab, history_tab = st.tabs(["Generate", "History & Update"])
+    with company_tab:
+        st.subheader("Company")
 
-        # Generate
-        with gen_tab:
-            st.subheader("Generate Campaign")
-            require_auth_gate()
+        # Utility: fetch latest company record from backend
+        def _fetch_company_record():
+            try:
+                r = http_get(EP["company_get"], needs_auth=True)
+            except requests.RequestException as e:
+                st.error(f"Network error fetching company: {e}")
+                return None
 
-            if st.session_state["company_cache"] is None:
-                st.error("Add company data first (Company tab).")
-                st.stop()
-
-            products = st.session_state.get("products_cache") or to_list_from_products_field(
-                st.session_state["company_cache"].get("products", "")
-            )
-            if not products:
-                st.error("No products found. Update company products.")
-                st.stop()
-
-            with st.form("generate_form", clear_on_submit=False):
-                g_product = st.selectbox("Product", options=products)
-                g_type = st.selectbox("Campaign Type", options=CAMPAIGN_TYPES)
-                g_channel = st.selectbox("Channel", options=CHANNELS)
-                g_output = st.selectbox("Output Type", options=OUTPUT_TYPES)
-                g_duration = st.text_input("Duration", placeholder="e.g., 3 months")
-                g_budget = st.text_input("Budget", placeholder="e.g., $5,000")
-                g_submit = st.form_submit_button("Generate")
-            if g_submit:
-                payload = {
-                    "product": g_product,
-                    "campaign_type": g_type,
-                    "channel": g_channel,
-                    "output_type": g_output,
-                    "duration": g_duration.strip(),
-                    "budget": g_budget.strip(),
-                }
+            # Treat 200 as success; 204/404 as "no data"
+            if r.status_code == 200:
                 try:
-                    r = http_post(EP["campaign_generate"], payload, needs_auth=True)
-                    if r.status_code == 200:
-                        data = r.json()
-                        st.success("Campaign generated and saved (status: pending).")
-                        with st.expander("Generated Campaign", expanded=True):
-                            st.json(data)
-                    else:
-                        st.error(f"Generate failed ({r.status_code}): {r.text}")
-                except requests.RequestException as e:
-                    st.error(f"Network error generating campaign: {e}")
-
-        # History & Update
-        with history_tab:
-            st.subheader("Campaign History & Update")
-            require_auth_gate()
-
-            products = st.session_state.get("products_cache") or []
-            c1, c2, c3 = st.columns([1, 1, 0.5])
-            with c1:
-                h_date = st.date_input("Date (YYYY-MM-DD)", format="YYYY-MM-DD")
-            with c2:
-                h_product = st.selectbox("Product", options=["(All)"] + products)
-            with c3:
-                refresh = st.button("Refresh")
-
-            def fetch_history():
-                params = {}
-                if h_date:
-                    params["date"] = h_date.isoformat()
-                if h_product and h_product != "(All)":
-                    params["product"] = h_product
-                try:
-                    r = http_get(EP["campaigns"], params=params, needs_auth=True)
-                    if r.status_code == 200:
-                        return r.json()
-                    elif r.status_code == 404:
-                        return []
-                    else:
-                        st.error(f"History fetch returned {r.status_code}: {r.text}")
-                        return []
-                except requests.RequestException as e:
-                    st.error(f"Network error fetching history: {e}")
-                    return []
-
-            if refresh or st.session_state.get("history_cache") is None:
-                st.session_state["history_cache"] = fetch_history()
-            history = st.session_state["history_cache"]
-
-            if not history:
-                st.info("No campaigns found for the selected filters.")
+                    return r.json()
+                except Exception:
+                    st.warning("Company endpoint returned non-JSON payload.")
+                    return None
+            elif r.status_code in (204, 404):
+                return None
+            elif r.status_code == 401:
+                st.error("Unauthorized. Please log in again.")
+                return None
             else:
-                for row in history:
-                    header = f"[{row.get('created_at','')}] {row.get('product','')} • {row.get('campaign_type','')} • {row.get('status','')}"
-                    with st.expander(header, expanded=False):
-                        st.write(f"**Product:** {row.get('product','')}")
-                        st.write(f"**Campaign Type:** {row.get('campaign_type','')}")
-                        st.write(f"**Channel:** {row.get('channel','')}")
-                        st.write(f"**Duration:** {row.get('duration','')}")
-                        st.write(f"**Budget:** {row.get('budget','')}")
-                        st.write(f"**Status:** {row.get('status','')}")
-                        st.write("**Plan:**")
-                        st.markdown(row.get("plan", "") or "_No plan text_")
-                        st.write("**Result Notes:**")
-                        st.write(row.get("result_notes", "") or "_None_")
+                st.warning(f"Company fetch returned {r.status_code}: {r.text}")
+                return None
 
-                        st.markdown("---")
-                        st.write("**Update Status** (requires both fields)")
-                        form_key = f"upd_{row.get('id')}"
-                        with st.form(form_key):
-                            new_status = st.selectbox(
-                                "Status",
-                                options=["started", "finished"],
-                                index=0,
-                                key=f"status_{row.get('id')}"
+        # Load once per session (cache)
+        if st.session_state["company_cache"] is None:
+            st.session_state["company_cache"] = _fetch_company_record()
+
+        company = st.session_state["company_cache"]
+
+        if company:
+            products = to_list_from_products_field(company.get("products", ""))
+            st.session_state["products_cache"] = products
+            with st.expander("Company Data", expanded=True):
+                st.write(f"**Company:** {company.get('company_name','')}")
+                st.write(f"**Location:** {company.get('location','')}")
+                st.write(f"**Target Customer:** {company.get('target_customer','')}")
+                st.write("**Products:**")
+                if products:
+                    for p in products:
+                        st.write(f"- {p}")
+                else:
+                    st.write("- None")
+                st.write("**Profile:**")
+                st.markdown(company.get("company_profile", "") or "_No profile_")
+            st.info("Company data set. You can generate campaigns or view history.")
+        else:
+            st.warning("No company data yet. Enter your company details once.")
+            with st.form("company_form", clear_on_submit=False):
+                c_name = st.text_input("Company Name")
+                c_profile = st.text_area("Company Profile", height=180)
+                c_products_text = st.text_area(
+                    "Products (one per line)",
+                    placeholder="Product A\nProduct B\nProduct C",
+                    height=120,
+                )
+                c_location = st.text_input("Location")
+                c_target = st.text_input("Target Customer")
+                c_submit = st.form_submit_button("Save Company")
+
+            if c_submit:
+                # Basic client-side validation
+                products_list = [p.strip() for p in c_products_text.splitlines() if p.strip()]
+                payload = {
+                    "company_name": (c_name or "").strip(),
+                    "company_profile": (c_profile or "").strip(),
+                    "products": to_backend_products_field(products_list),
+                    "location": (c_location or "").strip(),
+                    "target_customer": (c_target or "").strip(),
+                }
+                missing = [k for k, v in payload.items() if not v]
+                if missing:
+                    st.error(f"Missing required fields: {', '.join(missing)}")
+                else:
+                    try:
+                        r = http_post(EP["company_post"], payload, needs_auth=True)
+                    except requests.RequestException as e:
+                        st.error(f"Network error saving company: {e}")
+                    else:
+                        if r.status_code in (200, 201):
+                            # Prefer server-returned JSON if available; then hard refresh from GET
+                            saved = None
+                            try:
+                                if r.headers.get("content-type", "").lower().startswith("application/json"):
+                                    saved = r.json()
+                            except Exception:
+                                saved = None
+
+                            # Always refetch to get canonical record (ids, normalized fields, etc.)
+                            st.session_state["company_cache"] = _fetch_company_record() or saved or payload
+                            st.session_state["products_cache"] = to_list_from_products_field(
+                                (st.session_state["company_cache"] or {}).get("products", "")
                             )
-                            new_notes = st.text_area(
-                                "Result Notes",
-                                key=f"notes_{row.get('id')}",
-                                placeholder="Add concrete outcomes, metrics, learnings…",
-                            )
-                            upd_btn = st.form_submit_button("Save Update")
+                            st.success("Company saved.")
+                        elif r.status_code in (400, 409, 422):
+                            st.error(f"Save failed ({r.status_code}): {r.text}")
+                        else:
+                            st.error(f"Save failed ({r.status_code}): {r.text}")
 
-                        if upd_btn:
-                            if not (new_status and new_notes.strip()):
-                                st.error("Both status and result_notes are required.")
-                            else:
-                                payload = {
-                                    "status": new_status,
-                                    "result_notes": new_notes.strip(),
-                                }
-                                # Optional guards
-                                if h_date:
-                                    payload["date"] = h_date.isoformat()
-                                if h_product and h_product != "(All)":
-                                    payload["product"] = h_product
-
-                                try:
-                                    url = f"{EP['campaign_update_base']}/{row.get('id')}/status"
-                                    r = http_patch(url, payload, needs_auth=True)
-                                    if r.status_code == 200:
-                                        st.success("Campaign updated.")
-                                        st.session_state["history_cache"] = fetch_history()
-                                    else:
-                                        st.error(f"Update failed ({r.status_code}): {r.text}")
-                                except requests.RequestException as e:
-                                    st.error(f"Network error updating campaign: {e}")
 
     # ----------------------
     # Reports
