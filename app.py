@@ -231,112 +231,6 @@ with app_tab:
     # Company
     # ----------------------
     with company_tab:
-    st.subheader("Company")
-
-    # Utility: fetch latest company record from backend
-    def _fetch_company_record():
-        try:
-            r = http_get(EP["company_get"], needs_auth=True)
-        except requests.RequestException as e:
-            st.error(f"Network error fetching company: {e}")
-            return None
-
-        # Treat 200 as success; 204/404 as "no data"
-        if r.status_code == 200:
-            try:
-                return r.json()
-            except Exception:
-                st.warning("Company endpoint returned non-JSON payload.")
-                return None
-        elif r.status_code in (204, 404):
-            return None
-        elif r.status_code == 401:
-            st.error("Unauthorized. Please log in again.")
-            return None
-        else:
-            st.warning(f"Company fetch returned {r.status_code}: {r.text}")
-            return None
-
-    # Load once per session (cache)
-    if st.session_state["company_cache"] is None:
-        st.session_state["company_cache"] = _fetch_company_record()
-
-    company = st.session_state["company_cache"]
-
-    if company:
-        products = to_list_from_products_field(company.get("products", ""))
-        st.session_state["products_cache"] = products
-        with st.expander("Company Data", expanded=True):
-            st.write(f"**Company:** {company.get('company_name','')}")
-            st.write(f"**Location:** {company.get('location','')}")
-            st.write(f"**Target Customer:** {company.get('target_customer','')}")
-            st.write("**Products:**")
-            if products:
-                for p in products:
-                    st.write(f"- {p}")
-            else:
-                st.write("- None")
-            st.write("**Profile:**")
-            st.markdown(company.get("company_profile", "") or "_No profile_")
-        st.info("Company data set. You can generate campaigns or view history.")
-    else:
-        st.warning("No company data yet. Enter your company details once.")
-        with st.form("company_form", clear_on_submit=False):
-            c_name = st.text_input("Company Name")
-            c_profile = st.text_area("Company Profile", height=180)
-            c_products_text = st.text_area(
-                "Products (one per line)",
-                placeholder="Product A\nProduct B\nProduct C",
-                height=120,
-            )
-            c_location = st.text_input("Location")
-            c_target = st.text_input("Target Customer")
-            c_submit = st.form_submit_button("Save Company")
-
-        if c_submit:
-            # Basic client-side validation
-            products_list = [p.strip() for p in c_products_text.splitlines() if p.strip()]
-            payload = {
-                "company_name": (c_name or "").strip(),
-                "company_profile": (c_profile or "").strip(),
-                "products": to_backend_products_field(products_list),
-                "location": (c_location or "").strip(),
-                "target_customer": (c_target or "").strip(),
-            }
-            missing = [k for k, v in payload.items() if not v]
-            if missing:
-                st.error(f"Missing required fields: {', '.join(missing)}")
-            else:
-                try:
-                    r = http_post(EP["company_post"], payload, needs_auth=True)
-                except requests.RequestException as e:
-                    st.error(f"Network error saving company: {e}")
-                else:
-                    if r.status_code in (200, 201):
-                        # Prefer server-returned JSON if available; then hard refresh from GET
-                        saved = None
-                        try:
-                            if r.headers.get("content-type", "").lower().startswith("application/json"):
-                                saved = r.json()
-                        except Exception:
-                            saved = None
-
-                        # Always refetch to get canonical record (ids, normalized fields, etc.)
-                        st.session_state["company_cache"] = _fetch_company_record() or saved or payload
-                        st.session_state["products_cache"] = to_list_from_products_field(
-                            (st.session_state["company_cache"] or {}).get("products", "")
-                        )
-                        st.success("Company saved.")
-                    elif r.status_code in (400, 409, 422):
-                        st.error(f"Save failed ({r.status_code}): {r.text}")
-                    else:
-                        st.error(f"Save failed ({r.status_code}): {r.text}")
-
-
-    # ----------------------
-    # Company
-    # ----------------------
-    with company_tab:
         st.subheader("Company")
 
         # Utility: fetch latest company record from backend
@@ -436,8 +330,7 @@ with app_tab:
                         elif r.status_code in (400, 409, 422):
                             st.error(f"Save failed ({r.status_code}): {r.text}")
                         else:
-                            st.error(f"Save failed ({r.status_code}): {r.text}")     
-
+                            st.error(f"Save failed ({r.status_code}): {r.text}")
 
     # ----------------------
     # Reports
