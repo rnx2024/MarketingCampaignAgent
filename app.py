@@ -18,12 +18,11 @@ EP = {
     "company_post": f"{API_BASE_URL}/company",
     "campaign_generate": f"{API_BASE_URL}/marketing/generate",
     "campaigns": f"{API_BASE_URL}/campaigns",
-    "campaign_update_base": f"{API_BASE_URL}/campaign",          # PATCH /campaign/{id}/status
+    "campaign_update_base": f"{API_BASE_URL}/campaign",        # PATCH /campaign/{id}/status
     "monthly_overview": f"{API_BASE_URL}/campaign/overview/monthly",
-    "session_lookup": f"{API_BASE_URL}/session",                  # GET /session?name=<name> (adjust if your backend differs)
 }
 
-# Enumerations (adjust if you have a constants endpoint later)
+# Enumerations (adjust if you add a constants endpoint later)
 CAMPAIGN_TYPES = [
     "Brand Awareness",
     "Lead Generation",
@@ -56,14 +55,32 @@ def _parse_iso_z(dt_str: str) -> datetime:
     """Parse ISO-8601 timestamps, accepting Z-suffix."""
     return datetime.fromisoformat(str(dt_str).replace("Z", "+00:00"))
 
-def auth_headers() -> Dict[str, str]:
-    if not is_authenticated():
-        raise RuntimeError("Session invalid or expired.")
-    return {
-        "name": st.session_state["name"],
-        "token": st.session_state["token"],
-        "Content-Type": "application/json",
-    }
+def store_session_from_login(data: Dict[str, Any], fallback_name: str) -> None:
+    """Validate and store name, token, expires_at from /login JSON."""
+    token = data.get("token")
+    expires_at = data.get("expires_at")
+    backend_name = (data.get("name") or fallback_name or "").strip()
+
+    if not (isinstance(token, str) and isinstance(expires_at, str) and backend_name):
+        raise RuntimeError("Login response missing/invalid name, token or expires_at.")
+
+    try:
+        exp_dt = _parse_iso_z(expires_at)
+        if exp_dt.tzinfo is None:
+            raise ValueError("expires_at must include timezone.")
+    except Exception as e:
+        raise RuntimeError(f"Invalid expires_at format: {e}")
+
+    now_utc = datetime.now(timezone.utc)
+    if exp_dt <= now_utc:
+        raise RuntimeError("Session already expired.")
+    # Policy: expiry must NOT be the same calendar day
+    if exp_dt.date() == date.today():
+        raise RuntimeError("Session expiry is today; policy requires a later date.")
+
+    st.session_state["name"] = backend_name
+    st.session_state["token"] = token
+    st.session_state["expires_at"] = exp_dt.isoformat()
 
 def is_authenticated() -> bool:
     name = st.session_state.get("name")
@@ -74,7 +91,6 @@ def is_authenticated() -> bool:
     try:
         exp = _parse_iso_z(expires_at)
         now_utc = datetime.now(timezone.utc)
-        # Must be in the future AND not the same calendar day
         if exp <= now_utc:
             return False
         if exp.date() == date.today():
@@ -87,6 +103,15 @@ def require_auth_gate():
     if not is_authenticated():
         st.warning("You’re not logged in or your session expired. Please log in.")
         st.stop()
+
+def auth_headers() -> Dict[str, str]:
+    if not is_authenticated():
+        raise RuntimeError("Session invalid or expired.")
+    return {
+        "name": st.session_state["name"],
+        "token": st.session_state["token"],
+        "Content-Type": "application/json",
+    }
 
 def http_get(url: str, params: Optional[Dict[str, Any]] = None, needs_auth: bool = False):
     headers = auth_headers() if needs_auth else {}
@@ -114,62 +139,17 @@ def to_list_from_products_field(products_field: str | list) -> List[str]:
     return []
 
 def to_backend_products_field(products: List[str]) -> str:
-    # Your backend accepts a string; if you later standardize to JSON, change here.
+    # Backend accepts a string; JSON string keeps things simple for lists.
     return json.dumps(products, ensure_ascii=False)
-
-def fetch_session_by_name(name: str) -> Dict[str, Any]:
-    """
-    Query backend for the latest session for this user.
-    Adjust if your backend uses a different path (e.g., /session/<name>).
-    """
-    try:
-        r = requests.get(EP["session_lookup"], params={"name": name}, timeout=30)
-        if r.status_code != 200:
-            raise RuntimeError(f"Session lookup failed ({r.status_code}): {r.text}")
-        data = r.json()
-        # Accept list or single object
-        if isinstance(data, list):
-            if not data:
-                raise RuntimeError("No session records returned.")
-            def _key(x):
-                try:
-                    return _parse_iso_z(x.get("expires_at", "")).timestamp()
-                except Exception:
-                    return 0
-            data = sorted(data, key=_key, reverse=True)[0]
-        return data
-    except requests.RequestException as e:
-        raise RuntimeError(f"Network error fetching session: {e}")
-
-def validate_and_store_session(record: Dict[str, Any]) -> None:
-    token = record.get("token")
-    expires_at = record.get("expires_at")
-    backend_name = record.get("name")
-    if not (isinstance(token, str) and isinstance(expires_at, str) and isinstance(backend_name, str)):
-        raise RuntimeError("Session record missing/invalid name, token, or expires_at.")
-    try:
-        exp_dt = _parse_iso_z(expires_at)
-        if exp_dt.tzinfo is None:
-            raise ValueError("expires_at must include timezone.")
-    except Exception as e:
-        raise RuntimeError(f"Invalid expires_at format: {e}")
-    now_utc = datetime.now(timezone.utc)
-    if exp_dt <= now_utc:
-        raise RuntimeError("Session already expired.")
-    if exp_dt.date() == date.today():
-        raise RuntimeError("Session expiry is today; policy requires a later date.")
-    st.session_state["name"] = backend_name.strip()
-    st.session_state["token"] = token
-    st.session_state["expires_at"] = exp_dt.isoformat()
 
 # -----------------------------------------------------------------------------
 # Session init
 # -----------------------------------------------------------------------------
-st.set_page_config(page_title="Marketing Agent", page_icon="📣", layout="wide")
+st.set_page_config(page_title="Marketing Agent", layout="wide")
 for k in ["name", "token", "expires_at", "company_cache", "products_cache", "history_cache"]:
     st.session_state.setdefault(k, None)
 
-st.title("📣 Marketing Agent")
+st.title("Marketing Agent")
 
 # -----------------------------------------------------------------------------
 # Tabs
@@ -198,7 +178,7 @@ with auth_tab:
                 "api_key": r_api_key.strip(),
             }
             try:
-                resp = requests.post(EP["register"], json=payload, timeout=60)
+                resp = http_post(EP["register"], payload)
                 if resp.status_code == 200:
                     st.success("Registered successfully. You can now log in.")
                 elif resp.status_code in (403, 409, 422):
@@ -217,12 +197,11 @@ with auth_tab:
         if l_submit:
             payload = {"name": l_name.strip(), "password": l_password}
             try:
-                # Perform login, then fetch session by name from backend
-                resp = requests.post(EP["login"], json=payload, timeout=60)
+                resp = http_post(EP["login"], payload)
                 if resp.status_code == 200:
                     try:
-                        session_record = fetch_session_by_name(l_name.strip())
-                        validate_and_store_session(session_record)
+                        login_json = resp.json()
+                        store_session_from_login(login_json, l_name.strip())
                         st.success("Logged in.")
                     except RuntimeError as e:
                         st.error(str(e))
@@ -449,7 +428,7 @@ with app_tab:
                                     "status": new_status,
                                     "result_notes": new_notes.strip(),
                                 }
-                                # pass current filters as guards if set
+                                # Optional guards
                                 if h_date:
                                     payload["date"] = h_date.isoformat()
                                 if h_product and h_product != "(All)":
@@ -481,7 +460,6 @@ with app_tab:
                     if not overview:
                         st.info("No monthly data yet.")
                     else:
-                        # Show latest month metrics if available
                         try:
                             latest = sorted(overview, key=lambda x: x.get("month", ""))[-1]
                             c1, c2 = st.columns(2)
