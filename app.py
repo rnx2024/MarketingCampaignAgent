@@ -333,7 +333,7 @@ with app_tab:
                         st.error(f"Save failed ({r.status_code}): {r.text}")
 
 
-       # ----------------------
+    # ----------------------
     # Company
     # ----------------------
     with company_tab:
@@ -436,7 +436,7 @@ with app_tab:
                         elif r.status_code in (400, 409, 422):
                             st.error(f"Save failed ({r.status_code}): {r.text}")
                         else:
-                            st.error(f"Save failed ({r.status_code}): {r.text}")
+                            st.error(f"Save failed ({r.status_code}): {r.text}")     
 
 
     # ----------------------
