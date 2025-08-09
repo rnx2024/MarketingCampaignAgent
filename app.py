@@ -230,7 +230,7 @@ with app_tab:
     # ----------------------
     # Company
     # ----------------------
-   with company_tab:
+    with company_tab:
     st.subheader("Company")
 
     # Utility: fetch latest company record from backend
