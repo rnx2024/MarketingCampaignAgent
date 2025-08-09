@@ -51,12 +51,19 @@ OUTPUT_TYPES = [
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
+# before
 def _parse_iso_z(dt_str: str) -> datetime:
-    """Parse ISO-8601 timestamps, accepting Z-suffix."""
     return datetime.fromisoformat(str(dt_str).replace("Z", "+00:00"))
 
+# after (assume UTC if naive)
+def _parse_iso_z(dt_str: str) -> datetime:
+    dt = datetime.fromisoformat(str(dt_str).replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)  # treat naive timestamps as UTC
+    return dt
+
+
 def store_session_from_login(data: Dict[str, Any], fallback_name: str) -> None:
-    """Validate and store name, token, expires_at from /login JSON."""
     token = data.get("token")
     expires_at = data.get("expires_at")
     backend_name = (data.get("name") or fallback_name or "").strip()
@@ -65,22 +72,20 @@ def store_session_from_login(data: Dict[str, Any], fallback_name: str) -> None:
         raise RuntimeError("Login response missing/invalid name, token or expires_at.")
 
     try:
-        exp_dt = _parse_iso_z(expires_at)
-        if exp_dt.tzinfo is None:
-            raise ValueError("expires_at must include timezone.")
+        exp_dt = _parse_iso_z(expires_at)  # now handles naive -> UTC
     except Exception as e:
         raise RuntimeError(f"Invalid expires_at format: {e}")
 
     now_utc = datetime.now(timezone.utc)
     if exp_dt <= now_utc:
         raise RuntimeError("Session already expired.")
-    # Policy: expiry must NOT be the same calendar day
-    if exp_dt.date() == date.today():
+    if exp_dt.date() == now_utc.date():        # “not today” rule (UTC-based)
         raise RuntimeError("Session expiry is today; policy requires a later date.")
 
     st.session_state["name"] = backend_name
     st.session_state["token"] = token
     st.session_state["expires_at"] = exp_dt.isoformat()
+
 
 def is_authenticated() -> bool:
     name = st.session_state.get("name")
