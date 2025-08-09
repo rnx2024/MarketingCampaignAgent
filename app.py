@@ -108,11 +108,11 @@ def to_backend_products_field(products: List[str]) -> str:
 # -----------------------------------------------------------------------------
 # Session init
 # -----------------------------------------------------------------------------
-st.set_page_config(page_title="Marketing Campaign Agent", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Marketing Agent", page_icon="📣", layout="wide")
 for k in ["name", "token", "expires_at", "company_cache", "products_cache", "history_cache"]:
     st.session_state.setdefault(k, None)
 
-st.title("Marketing Campaign Agent")
+st.title("📣 Marketing Agent")
 
 # -----------------------------------------------------------------------------
 # Tabs
