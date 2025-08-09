@@ -1,6 +1,6 @@
 # streamlit_app.py
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Dict, Any, Optional, List
 
 import requests
@@ -18,8 +18,9 @@ EP = {
     "company_post": f"{API_BASE_URL}/company",
     "campaign_generate": f"{API_BASE_URL}/marketing/generate",
     "campaigns": f"{API_BASE_URL}/campaigns",
-    "campaign_update_base": f"{API_BASE_URL}/campaign/status",                 # PATCH /campaign/{id}/status
+    "campaign_update_base": f"{API_BASE_URL}/campaign",          # PATCH /campaign/{id}/status
     "monthly_overview": f"{API_BASE_URL}/campaign/overview/monthly",
+    "session_lookup": f"{API_BASE_URL}/session",                  # GET /session?name=<name> (adjust if your backend differs)
 }
 
 # Enumerations (adjust if you have a constants endpoint later)
@@ -44,19 +45,25 @@ OUTPUT_TYPES = [
     "Email Sequence",
     "Landing Page Brief",
     "Blog Series",
-    "Video Scripts"        
+    "Video Scripts",
+    "Campaign Plan",
 ]
 
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
+def _parse_iso_z(dt_str: str) -> datetime:
+    """Parse ISO-8601 timestamps, accepting Z-suffix."""
+    return datetime.fromisoformat(str(dt_str).replace("Z", "+00:00"))
+
 def auth_headers() -> Dict[str, str]:
-    headers = {}
-    if st.session_state.get("name"):
-        headers["name"] = st.session_state["name"]
-    if st.session_state.get("token"):
-        headers["token"] = st.session_state["token"]
-    return headers
+    if not is_authenticated():
+        raise RuntimeError("Session invalid or expired.")
+    return {
+        "name": st.session_state["name"],
+        "token": st.session_state["token"],
+        "Content-Type": "application/json",
+    }
 
 def is_authenticated() -> bool:
     name = st.session_state.get("name")
@@ -65,8 +72,14 @@ def is_authenticated() -> bool:
     if not (name and token and expires_at):
         return False
     try:
-        exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-        return datetime.now(timezone.utc) < exp
+        exp = _parse_iso_z(expires_at)
+        now_utc = datetime.now(timezone.utc)
+        # Must be in the future AND not the same calendar day
+        if exp <= now_utc:
+            return False
+        if exp.date() == date.today():
+            return False
+        return True
     except Exception:
         return False
 
@@ -102,8 +115,52 @@ def to_list_from_products_field(products_field: str | list) -> List[str]:
 
 def to_backend_products_field(products: List[str]) -> str:
     # Your backend accepts a string; if you later standardize to JSON, change here.
-    # Keeping JSON string is convenient if you already use it.
     return json.dumps(products, ensure_ascii=False)
+
+def fetch_session_by_name(name: str) -> Dict[str, Any]:
+    """
+    Query backend for the latest session for this user.
+    Adjust if your backend uses a different path (e.g., /session/<name>).
+    """
+    try:
+        r = requests.get(EP["session_lookup"], params={"name": name}, timeout=30)
+        if r.status_code != 200:
+            raise RuntimeError(f"Session lookup failed ({r.status_code}): {r.text}")
+        data = r.json()
+        # Accept list or single object
+        if isinstance(data, list):
+            if not data:
+                raise RuntimeError("No session records returned.")
+            def _key(x):
+                try:
+                    return _parse_iso_z(x.get("expires_at", "")).timestamp()
+                except Exception:
+                    return 0
+            data = sorted(data, key=_key, reverse=True)[0]
+        return data
+    except requests.RequestException as e:
+        raise RuntimeError(f"Network error fetching session: {e}")
+
+def validate_and_store_session(record: Dict[str, Any]) -> None:
+    token = record.get("token")
+    expires_at = record.get("expires_at")
+    backend_name = record.get("name")
+    if not (isinstance(token, str) and isinstance(expires_at, str) and isinstance(backend_name, str)):
+        raise RuntimeError("Session record missing/invalid name, token, or expires_at.")
+    try:
+        exp_dt = _parse_iso_z(expires_at)
+        if exp_dt.tzinfo is None:
+            raise ValueError("expires_at must include timezone.")
+    except Exception as e:
+        raise RuntimeError(f"Invalid expires_at format: {e}")
+    now_utc = datetime.now(timezone.utc)
+    if exp_dt <= now_utc:
+        raise RuntimeError("Session already expired.")
+    if exp_dt.date() == date.today():
+        raise RuntimeError("Session expiry is today; policy requires a later date.")
+    st.session_state["name"] = backend_name.strip()
+    st.session_state["token"] = token
+    st.session_state["expires_at"] = exp_dt.isoformat()
 
 # -----------------------------------------------------------------------------
 # Session init
@@ -141,7 +198,7 @@ with auth_tab:
                 "api_key": r_api_key.strip(),
             }
             try:
-                resp = http_post(EP["register"], payload)
+                resp = requests.post(EP["register"], json=payload, timeout=60)
                 if resp.status_code == 200:
                     st.success("Registered successfully. You can now log in.")
                 elif resp.status_code in (403, 409, 422):
@@ -160,16 +217,15 @@ with auth_tab:
         if l_submit:
             payload = {"name": l_name.strip(), "password": l_password}
             try:
-                resp = http_post(EP["login"], payload)
+                # Perform login, then fetch session by name from backend
+                resp = requests.post(EP["login"], json=payload, timeout=60)
                 if resp.status_code == 200:
-                    data = resp.json()
-                    st.session_state["name"] = l_name.strip()
-                    st.session_state["token"] = data.get("token")
-                    st.session_state["expires_at"] = data.get("expires_at")
-                    if is_authenticated():
+                    try:
+                        session_record = fetch_session_by_name(l_name.strip())
+                        validate_and_store_session(session_record)
                         st.success("Logged in.")
-                    else:
-                        st.error("Login response missing/invalid token or expiry.")
+                    except RuntimeError as e:
+                        st.error(str(e))
                 elif resp.status_code in (401, 404):
                     st.error(f"Login failed ({resp.status_code}): {resp.text}")
                 else:
@@ -248,9 +304,16 @@ with app_tab:
                 try:
                     r = http_post(EP["company_post"], payload, needs_auth=True)
                     if r.status_code == 200:
+                        returned_json = None
+                        try:
+                            if r.headers.get("content-type", "").startswith("application/json"):
+                                returned_json = r.json()
+                        except Exception:
+                            returned_json = None
+                        saved = returned_json or payload
                         st.success("Company saved.")
-                        st.session_state["company_cache"] = payload
-                        st.session_state["products_cache"] = products_list
+                        st.session_state["company_cache"] = saved
+                        st.session_state["products_cache"] = to_list_from_products_field(saved.get("products", ""))
                     else:
                         st.error(f"Save failed ({r.status_code}): {r.text}")
                 except requests.RequestException as e:
