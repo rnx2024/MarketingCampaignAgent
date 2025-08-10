@@ -1,4 +1,4 @@
-## 📢 Marketing Agent
+## 📣 Marketing Agent
 
 A sleek, AI-powered marketing assistant that uses OpenAI and LangGraph to **plan**, **execute**, and **review** marketing campaigns tailored to product types, audience personas, channels, goals, and locations.
 
