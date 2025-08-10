@@ -1,3 +1,5 @@
+## ui/auth.py 
+
 import streamlit as st
 from constants import EP
 from services.api_client import http_post
@@ -6,7 +8,11 @@ from state import store_session_from_login
 
 def render_auth() -> None:
     st.header("Access")
-    mode = st.radio("Choose an action", options=["Login", "Register"], horizontal=True, key="auth_mode")
+
+    # Use a separate preference flag to control default, avoid binding the radio to session_state
+    pref = st.session_state.pop("auth_pref", "Login")  # "Login" or "Register"
+    mode = st.radio("Choose an action", options=["Login", "Register"], horizontal=True,
+                    index=(0 if pref == "Login" else 1))
 
     if mode == "Register":
         with st.form("register_form"):
@@ -24,8 +30,8 @@ def render_auth() -> None:
             }
             resp = http_post(EP["register"], payload)
             if resp.status_code == 200:
-                st.success("Registered successfully.")
-                st.session_state["auth_mode"] = "Login"
+                st.success("Registered successfully. Please log in.")
+                st.session_state["auth_pref"] = "Login"  # set preference for next run
                 st.rerun()
             elif resp.status_code in (403, 409, 422):
                 st.error(f"Registration failed ({resp.status_code}): {resp.text}")
