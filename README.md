@@ -21,7 +21,7 @@ A sleek, AI-powered marketing assistant that uses OpenAI and LangGraph to **plan
 
 ## 📸 Screenshot
 
-![screenshot](https://github.com/rnx2024/marketingcampaign-agent/blob/main/ui-agent.png)
+![screenshot](https://github.com/rnx2024/marketingcampaign-agent/blob/main/screenshots/Screenshot%202025-08-10%20171335.png)
 
 ---
 
