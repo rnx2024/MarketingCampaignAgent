@@ -21,6 +21,9 @@ def company_gate():
             st.markdown(company.get("company_profile", "") or "_No profile_")
         return company
 
+    # If no company data exists, inform the user explicitly
+    st.warning("No company data found for this account. Please register your company details.")
+
     st.header("Enter Company Data")
     with st.form("company_form"):
         c_name = st.text_input("Company Name")
@@ -28,7 +31,8 @@ def company_gate():
         c_products_text = st.text_area(
             "Products (one per line)",
             height=110,
-            placeholder="Product A\nProduct B"
+            placeholder="Product A
+Product B"
         )
         c_location = st.text_input("Location")
         c_target = st.text_input("Target Customer")
@@ -48,7 +52,7 @@ def company_gate():
             st.error(f"Missing required fields: {', '.join(missing)}")
         else:
             if save_company(payload):
-                st.success("Company data saved.")
+                st.success("Company data saved successfully.")
                 st.session_state["company_cache"] = fetch_company() or payload
                 st.rerun()
 
