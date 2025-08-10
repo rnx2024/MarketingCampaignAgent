@@ -25,8 +25,11 @@ def company_gate():
     with st.form("company_form"):
         c_name = st.text_input("Company Name")
         c_profile = st.text_area("Company Profile", height=160)
-        c_products_text = st.text_area("Products (one per line)", height=110, placeholder="Product A
-Product B")
+        c_products_text = st.text_area(
+            "Products (one per line)",
+            height=110,
+            placeholder="Product A\nProduct B"
+        )
         c_location = st.text_input("Location")
         c_target = st.text_input("Target Customer")
         c_submit = st.form_submit_button("Save Company")
