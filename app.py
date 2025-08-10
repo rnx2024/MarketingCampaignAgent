@@ -6,7 +6,7 @@ from ui.history import render_history
 from ui.generate import render_generate
 from state import init_session, is_authenticated
 
-st.set_page_config(page_title="Marketing Agent", page_icon ="📣" layout="wide")
+st.set_page_config(page_title="Marketing Agent", page_icon ="📣", layout="wide")
 
 st.markdown(
     """
