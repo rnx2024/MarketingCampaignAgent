@@ -16,7 +16,6 @@ A sleek, AI-powered marketing assistant that uses OpenAI and LangGraph to **plan
   - Campaign goal and strategy type
 - 📄 Clean AI-generated output with PDF export
 - 🧠 GPT-4o powered insights (via `langchain-openai`)
-- 🖥️ Sleek dark/light theme UI (configurable via `.streamlit/config.toml`)
 ```
 ---
 
