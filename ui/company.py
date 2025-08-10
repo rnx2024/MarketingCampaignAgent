@@ -1,9 +1,7 @@
 ## ui/company.py
-
 import streamlit as st
 from services.api_client import fetch_company, save_company
 from util import to_list_from_products_field, to_backend_products_field
-
 
 def company_gate():
     if st.session_state.get("company_cache") is None:
