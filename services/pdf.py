@@ -1,5 +1,4 @@
-## services/pdf.py
-
+# services/pdf.py
 from io import BytesIO
 from datetime import datetime
 from typing import Optional, Dict
@@ -9,19 +8,12 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 
-
 def _p(text: str, style_name: str, styles):
-    # Basic sanitization; ReportLab Paragraph understands simple inline markup
-    safe = (text or "").replace("
-", "
-").replace("
-", "
-")
+    # Normalize newlines, escape, then allow <br/> for line breaks
+    safe = (text or "").replace("\r\n", "\n").replace("\r", "\n")
     safe = safe.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    safe = safe.replace("
-", "<br/>")
+    safe = safe.replace("\n", "<br/>")
     return Paragraph(safe, styles[style_name])
-
 
 def build_campaign_pdf(
     *,
@@ -35,10 +27,10 @@ def build_campaign_pdf(
     doc = SimpleDocTemplate(
         buf,
         pagesize=A4,
-        leftMargin=2*cm,
-        rightMargin=2*cm,
-        topMargin=1.8*cm,
-        bottomMargin=1.8*cm,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+        topMargin=1.8 * cm,
+        bottomMargin=1.8 * cm,
         title=f"Campaign Plan - {company_name}",
     )
 
@@ -48,35 +40,30 @@ def build_campaign_pdf(
     styles.add(ParagraphStyle(name="Body", parent=styles["BodyText"], leading=14))
 
     flow = []
-
-    # Header
-    flow.append(_p(f"Campaign Plan", "H1", styles))
+    flow.append(_p("Campaign Plan", "H1", styles))
     when = datetime.now().strftime("%Y-%m-%d %H:%M")
     flow.append(_p(f"Company: {company_name}", "Body", styles))
     flow.append(_p(
-        " | ".join(
-            [
-                f"Product: {meta.get('product') or '—'}",
-                f"Type: {meta.get('campaign_type') or '—'}",
-                f"Channel: {meta.get('channel') or '—'}",
-                f"Output: {meta.get('output_type') or '—'}",
-                f"Duration: {meta.get('duration') or '—'}",
-                f"Budget: {meta.get('budget') or '—'}",
-                f"Generated: {when}",
-            ]
-        ),
+        " | ".join([
+            f"Product: {meta.get('product') or '—'}",
+            f"Type: {meta.get('campaign_type') or '—'}",
+            f"Channel: {meta.get('channel') or '—'}",
+            f"Output: {meta.get('output_type') or '—'}",
+            f"Duration: {meta.get('duration') or '—'}",
+            f"Budget: {meta.get('budget') or '—'}",
+            f"Generated: {when}",
+        ]),
         "Body", styles,
     ))
-    flow.append(Spacer(1, 0.6*cm))
+    flow.append(Spacer(1, 0.6 * cm))
 
-    # Sections
     flow.append(_p("Brand Context", "H2", styles))
     flow.append(_p(brand_context, "Body", styles))
-    flow.append(Spacer(1, 0.4*cm))
+    flow.append(Spacer(1, 0.4 * cm))
 
     flow.append(_p("Past Insights", "H2", styles))
     flow.append(_p(past_insights, "Body", styles))
-    flow.append(Spacer(1, 0.4*cm))
+    flow.append(Spacer(1, 0.4 * cm))
 
     flow.append(_p("Plan", "H2", styles))
     flow.append(_p(plan, "Body", styles))
