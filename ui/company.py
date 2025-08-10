@@ -1,7 +1,7 @@
 ## ui/company.py
 import streamlit as st
 from services.api_client import fetch_company, save_company
-from util import to_list_from_products_field, to_backend_products_field
+from util import to_list_from_products_field  # removed to_backend_products_field
 
 def company_gate():
     if st.session_state.get("company_cache") is None:
@@ -31,7 +31,7 @@ def company_gate():
         c_products_text = st.text_area(
             "Products (one per line)",
             height=110,
-            placeholder="Product A\\nProduct B"
+            placeholder="Product A\nProduct B"
         )
         c_location = st.text_input("Location")
         c_target = st.text_input("Target Customer")
@@ -42,7 +42,7 @@ def company_gate():
         payload = {
             "company_name": (c_name or "").strip(),
             "company_profile": (c_profile or "").strip(),
-            "products": to_backend_products_field(products_list),
+            "products": ",".join(products_list),  # <-- backend expects comma-separated
             "location": (c_location or "").strip(),
             "target_customer": (c_target or "").strip(),
         }
