@@ -1,17 +1,27 @@
-## ui/auth.py 
-
 import streamlit as st
 from constants import EP
 from services.api_client import http_post
 from state import store_session_from_login
 
+def logout():
+    for key in ["name", "token", "company_cache", "auth_pref"]:
+        st.session_state.pop(key, None)
+    st.session_state["auth_pref"] = "Login"
+    st.success("Logged out.")
+    st.rerun()
 
 def render_auth() -> None:
     st.header("Access")
 
-    # Use a separate preference flag to control default, avoid binding the radio to session_state
-    pref = st.session_state.pop("auth_pref", "Login")  # "Login" or "Register"
-    mode = st.radio("Choose an action", options=["Login", "Register"], horizontal=True,
+    # Show logout if already logged in
+    if st.session_state.get("token") and st.session_state.get("name"):
+        st.info(f"Logged in as {st.session_state['name']}")
+        if st.button("Logout"):
+            logout()
+        return  # Skip login/register if logged in
+
+    pref = st.session_state.pop("auth_pref", "Login")
+    mode = st.radio("Choose an action", ["Login", "Register"], horizontal=True,
                     index=(0 if pref == "Login" else 1))
 
     if mode == "Register":
@@ -31,7 +41,7 @@ def render_auth() -> None:
             resp = http_post(EP["register"], payload)
             if resp.status_code == 200:
                 st.success("Registered successfully. Please log in.")
-                st.session_state["auth_pref"] = "Login"  # set preference for next run
+                st.session_state["auth_pref"] = "Login"
                 st.rerun()
             elif resp.status_code in (403, 409, 422):
                 st.error(f"Registration failed ({resp.status_code}): {resp.text}")
