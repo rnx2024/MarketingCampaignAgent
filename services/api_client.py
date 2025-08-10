@@ -48,3 +48,48 @@ def save_company(payload: Dict[str, Any]) -> bool:
     except requests.RequestException as e:
         st.error(f"Network error saving company: {e}")
         return False
+
+# Campaigns
+
+def fetch_campaigns() -> List[Dict[str, Any]]:
+    try:
+        r = http_get(EP["campaigns"], needs_auth=True)
+        if r.status_code == 200 and r.headers.get("content-type", "").lower().startswith("application/json"):
+            return r.json()
+        return []
+    except requests.RequestException as e:
+        st.error(f"Network error fetching campaigns: {e}")
+        return []
+
+
+def generate_campaign(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    try:
+        r = http_post(EP["campaign_generate"], payload, needs_auth=True)
+        if r.status_code == 200:
+            return r.json()
+        st.error(f"Generation failed ({r.status_code}): {r.text}")
+        return None
+    except requests.RequestException as e:
+        st.error(f"Network error generating campaign: {e}")
+        return None
+
+
+def update_campaign_status(campaign_id: int, status: str, result_notes: str, product: Optional[str] = None, date_str: Optional[str] = None) -> bool:
+    if not status or not result_notes:
+        st.error("Status and result notes are required.")
+        return False
+    payload: Dict[str, Any] = {"status": status, "result_notes": result_notes}
+    if product:
+        payload["product"] = product
+    if date_str:
+        payload["date"] = date_str  # expect YYYY-MM-DD
+    try:
+        url = f"{EP['campaign_update_base']}/{campaign_id}/status"
+        r = http_patch(url, payload, needs_auth=True)
+        if r.status_code == 200:
+            return True
+        st.error(f"Update failed ({r.status_code}): {r.text}")
+        return False
+    except requests.RequestException as e:
+        st.error(f"Network error updating campaign: {e}")
+        return False
