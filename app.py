@@ -1,5 +1,4 @@
 ## app.py
-
 import streamlit as st
 from ui.auth import render_auth
 from ui.company import company_gate
@@ -12,9 +11,24 @@ st.title("Marketing Agent")
 
 init_session()
 
+def logout():
+    # clear session and return to login
+    for key in ["name", "token", "expires_at", "company_cache", "auth_pref"]:
+        st.session_state.pop(key, None)
+    st.session_state["auth_pref"] = "Login"
+    st.rerun()
+
 if not is_authenticated():
     render_auth()
     st.stop()
+
+# --- Top bar: logged-in user + logout ---
+left, right = st.columns([6, 1])
+with left:
+    st.caption(f"Logged in as: **{st.session_state.get('name','')}**")
+with right:
+    if st.button("Logout", key="logout_main"):
+        logout()
 
 company = company_gate()  # blocks until saved
 
