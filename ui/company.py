@@ -31,8 +31,7 @@ def company_gate():
         c_products_text = st.text_area(
             "Products (one per line)",
             height=110,
-            placeholder="Product A
-Product B"
+            placeholder="Product A\\nProduct B"
         )
         c_location = st.text_input("Location")
         c_target = st.text_input("Target Customer")
