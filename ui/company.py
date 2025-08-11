@@ -58,7 +58,7 @@ def company_gate():
             st.error(f"Missing required fields: {', '.join(missing)}")
         else:
             try:
-                if save_company(payload, headers=auth_headers(strict=True)):
+                if save_company(payload, headers=auth_headers()):
                     st.success("Company data saved successfully.")
                     st.session_state["company_cache"] = fetch_company() or payload
                     st.rerun()
