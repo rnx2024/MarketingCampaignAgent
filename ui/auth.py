@@ -38,8 +38,8 @@ def render_auth() -> None:
             r_name = st.text_input("Name")
             r_email = st.text_input("Email")
             r_password = st.text_input("Password", type="password")
-            r_api_key = st.text_input("API Key")
-            r_submit = st.form_submit_button("Register")  # validate on submit
+            r_api_key = st.text_input("API Key")  # API Key ONLY here
+            r_submit = st.form_submit_button("Register")
 
         if r_submit:
             name = r_name.strip()
@@ -67,26 +67,27 @@ def render_auth() -> None:
                     st.error(f"Unexpected response ({resp.status_code}): {resp.text}")
 
     # --- Login ---
-    with st.form("login_form"):
-        l_name = st.text_input("Name", key="login_name")
-        l_password = st.text_input("Password", type="password", key="login_pw")
-        l_submit = st.form_submit_button("Login")  # validate on submit
+    if mode == "Login":
+        with st.form("login_form"):
+            l_name = st.text_input("Name", key="login_name")
+            l_password = st.text_input("Password", type="password", key="login_pw")
+            l_submit = st.form_submit_button("Login")
 
-    if l_submit:
-        name = l_name.strip()
-        if not name or not l_password:
-            st.error("Name and Password are required.")
-        else:
-            payload = {"name": name, "password": l_password}
-            resp = http_post(EP["login"], payload)
-            if resp.status_code == 200:
-                try:
-                    store_session_from_login(resp.json(), name)
-                    st.success("Login successful.")
-                    st.rerun()
-                except RuntimeError as e:
-                    st.error(str(e))
-            elif resp.status_code in (401, 404):
-                st.error(f"Login failed ({resp.status_code}): {resp.text}")
+        if l_submit:
+            name = l_name.strip()
+            if not name or not l_password:
+                st.error("Name and Password are required.")
             else:
-                st.error(f"Unexpected response ({resp.status_code}): {resp.text}")
+                payload = {"name": name, "password": l_password}
+                resp = http_post(EP["login"], payload)
+                if resp.status_code == 200:
+                    try:
+                        store_session_from_login(resp.json(), name)
+                        st.success("Login successful.")
+                        st.rerun()
+                    except RuntimeError as e:
+                        st.error(str(e))
+                elif resp.status_code in (401, 404):
+                    st.error(f"Login failed ({resp.status_code}): {resp.text}")
+                else:
+                    st.error(f"Unexpected response ({resp.status_code}): {resp.text}")
