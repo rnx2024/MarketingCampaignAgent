@@ -42,7 +42,7 @@ def http_patch(
     return requests.patch(
         url,
         json=json_payload,
-        params=params,  # allow query params on PATCH
+        params=params,
         headers=_merge_headers(needs_auth, headers),
         timeout=60,
     )
@@ -101,13 +101,34 @@ def generate_campaign(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
 
-def update_campaign_status(
-    status: str,
-    result_notes: str,
-    product: Optional[str] = None,
-    date_str: Optional[str] = None
-) -> bool:
-    """Match backend: PATCH /campaign/status?product=...&date=YYYY-MM-DD with JSON body."""
+def update_campaign_status(*args, **kwargs) -> bool:
+    """
+    Supports both:
+      old: update_campaign_status(campaign_id:int, status:str, result_notes:str, product?:str, date_str?:str)
+      new: update_campaign_status(status:str, result_notes:str, product?:str, date_str?:str)
+    """
+    # Normalize inputs
+    status = result_notes = product = date_str = None
+    if args and isinstance(args[0], int):  # old style with id first
+        if len(args) < 3:
+            st.error("Status and result notes are required.")
+            return False
+        status = args[1]
+        result_notes = args[2]
+        product = args[3] if len(args) >= 4 else kwargs.get("product")
+        date_str = args[4] if len(args) >= 5 else kwargs.get("date_str")
+    else:  # new style
+        if len(args) >= 2:
+            status, result_notes = args[0], args[1]
+            product = args[2] if len(args) >= 3 else kwargs.get("product")
+            date_str = args[3] if len(args) >= 4 else kwargs.get("date_str")
+        else:
+            status = kwargs.get("status")
+            result_notes = kwargs.get("result_notes")
+            product = kwargs.get("product")
+            date_str = kwargs.get("date_str")
+
+    # Validate
     if not status or not result_notes:
         st.error("Status and result notes are required.")
         return False
@@ -116,15 +137,15 @@ def update_campaign_status(
         return False
 
     payload: Dict[str, Any] = {"status": status, "result_notes": result_notes}
-    q: Dict[str, Any] = {}
+    params: Dict[str, Any] = {}
     if product:
-        q["product"] = product
+        params["product"] = product
     if date_str:
-        q["date"] = date_str  # YYYY-MM-DD
+        params["date"] = date_str  # YYYY-MM-DD
 
     try:
-        url = EP["campaign_status"]
-        r = http_patch(url, payload, needs_auth=True, params=q)
+        url = EP["campaign_status"]  # PATCH /campaign/status
+        r = http_patch(url, payload, needs_auth=True, params=params)
         if r.status_code == 200:
             return True
         st.error(f"Update failed ({r.status_code}): {r.text}")
