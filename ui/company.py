@@ -1,19 +1,26 @@
-## ui/company.py
+# ui/company.py
 import streamlit as st
 from services.api_client import fetch_company, save_company
-from util import to_list_from_products_field  # removed to_backend_products_field
+from util import to_list_from_products_field
+from state import auth_headers  # ensure we can attach auth headers
 
 def company_gate():
+    # Force fetch with proper headers
     if st.session_state.get("company_cache") is None:
-        st.session_state["company_cache"] = fetch_company()
+        try:
+            st.session_state["company_cache"] = fetch_company()
+        except RuntimeError as e:
+            st.error(f"Session error: {e}")
+            st.stop()
+
     company = st.session_state.get("company_cache")
 
     if company:
         st.success("Company data loaded.")
         with st.expander("Company", expanded=True):
-            st.write(f"**Company:** {company.get('company_name','')}")
-            st.write(f"**Location:** {company.get('location','')}")
-            st.write(f"**Target Customer:** {company.get('target_customer','')}")
+            st.write(f"**Company:** {company.get('company_name', '')}")
+            st.write(f"**Location:** {company.get('location', '')}")
+            st.write(f"**Target Customer:** {company.get('target_customer', '')}")
             st.write("**Products:**")
             for p in to_list_from_products_field(company.get("products", "")) or ["None"]:
                 st.write(f"- {p}")
@@ -21,7 +28,7 @@ def company_gate():
             st.markdown(company.get("company_profile", "") or "_No profile_")
         return company
 
-    # If no company data exists, inform the user explicitly
+    # If no company data exists
     st.warning("No company data found for this account. Please register your company details.")
 
     st.header("Enter Company Data")
@@ -42,7 +49,7 @@ def company_gate():
         payload = {
             "company_name": (c_name or "").strip(),
             "company_profile": (c_profile or "").strip(),
-            "products": ",".join(products_list),  # <-- backend expects comma-separated
+            "products": ",".join(products_list),  # backend expects comma-separated
             "location": (c_location or "").strip(),
             "target_customer": (c_target or "").strip(),
         }
@@ -50,9 +57,13 @@ def company_gate():
         if missing:
             st.error(f"Missing required fields: {', '.join(missing)}")
         else:
-            if save_company(payload):
-                st.success("Company data saved successfully.")
-                st.session_state["company_cache"] = fetch_company() or payload
-                st.rerun()
+            try:
+                if save_company(payload, headers=auth_headers(strict=True)):
+                    st.success("Company data saved successfully.")
+                    st.session_state["company_cache"] = fetch_company() or payload
+                    st.rerun()
+            except RuntimeError as e:
+                st.error(f"Session error: {e}")
+                st.stop()
 
     st.stop()  # Block until company exists
