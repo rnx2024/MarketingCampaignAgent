@@ -117,4 +117,13 @@ def update_campaign_status(
         payload["date"] = date_str  # expect YYYY-MM-DD
 
     try:
-        base = EP["campaign_update_bas]()
+        base = EP["campaign_update_base"].rstrip("/")
+        url = f"{base}/{campaign_id}/status"
+        r = http_patch(url, payload, needs_auth=True)
+        if r.status_code == 200:
+            return True
+        st.error(f"Update failed ({r.status_code}): {r.text}")
+        return False
+    except requests.RequestException as e:
+        st.error(f"Network error updating campaign: {e}")
+        return False
