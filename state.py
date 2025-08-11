@@ -5,15 +5,22 @@ from typing import Dict, Any
 import streamlit as st
 
 
-def auth_headers():
-    h = {"Content-Type": "application/json"}
+def is_authenticated() -> bool:
+    return bool(st.session_state.get("token") and st.session_state.get("name"))
+
+def auth_headers(strict: bool = False) -> Dict[str, str]:
+    """Return headers for auth. If strict=True and no token, raise."""
+    h: Dict[str, str] = {"Content-Type": "application/json"}
     token = st.session_state.get("token")
-    if token:
-        h["Authorization"] = f"Bearer {token}"  # backend v2
     name = st.session_state.get("name")
+    if token:
+        h["Authorization"] = f"Bearer {token}"
     if name:
-        h["name"] = name  # optional legacy guard
+        h["name"] = name  # optional legacy
+    if strict and not token:
+        raise RuntimeError("Invalid session.")
     return h
+
 
 
 def init_session():
