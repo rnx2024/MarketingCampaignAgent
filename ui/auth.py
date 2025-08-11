@@ -38,22 +38,30 @@ def render_auth() -> None:
     )
 
     # --- Register ---
-    if mode == "Register":
-        with st.form("register_form"):
-            r_name = st.text_input("Name")
-            r_email = st.text_input("Email")
-            r_password = st.text_input("Password", type="password")
-            r_api_key = st.text_input("API Key")
-            can_submit = all([r_name, r_email, r_password, r_api_key])
-            r_submit = st.form_submit_button("Register", disabled=not can_submit)
+    # --- Register ---
+if mode == "Register":
+    with st.form("register_form"):
+        r_name = st.text_input("Name")
+        r_email = st.text_input("Email")
+        r_password = st.text_input("Password", type="password")
+        r_api_key = st.text_input("API Key")
+        r_submit = st.form_submit_button("Register")  # no disabled flag
 
-        if r_submit:
-            payload = {
-                "name": r_name.strip(),
-                "password": r_password,          # backend hashes
-                "email": r_email.strip(),
-                "api_key": r_api_key.strip(),
-            }
+    if r_submit:
+        name = r_name.strip()
+        email = r_email.strip()
+        password = r_password  # keep as entered
+        api_key = r_api_key.strip()
+
+        missing = [lbl for lbl, v in {
+            "Name": name, "Email": email, "Password": password, "API Key": api_key
+        }.items() if not v]
+        if missing:
+            st.error(f"Missing required: {', '.join(missing)}")
+        elif "@" not in email:
+            st.error("Enter a valid email.")
+        else:
+            payload = {"name": name, "password": password, "email": email, "api_key": api_key}
             resp = http_post(EP["register"], payload)
             if resp.status_code in (200, 201):
                 st.success("Registered successfully. Please log in.")
