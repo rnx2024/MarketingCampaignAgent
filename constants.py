@@ -4,8 +4,6 @@ import streamlit as st
 
 API_BASE_URL = st.secrets.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
 
-API_BASE_URL = st.secrets.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
-
 EP = {
     "register": f"{API_BASE_URL}/register",
     "login": f"{API_BASE_URL}/login",
