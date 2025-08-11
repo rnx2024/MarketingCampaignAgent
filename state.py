@@ -5,6 +5,17 @@ from typing import Dict, Any
 import streamlit as st
 
 
+def auth_headers():
+    h = {"Content-Type": "application/json"}
+    token = st.session_state.get("token")
+    if token:
+        h["Authorization"] = f"Bearer {token}"  # backend v2
+    name = st.session_state.get("name")
+    if name:
+        h["name"] = name  # optional legacy guard
+    return h
+
+
 def init_session():
     for k in ["name", "token", "expires_at", "company_cache", "auth_mode"]:
         st.session_state.setdefault(k, None)
