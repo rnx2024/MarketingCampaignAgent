@@ -1,4 +1,4 @@
-## services/api_client.py
+# services/api_client.py
 
 from typing import Optional, Dict, Any, List
 import requests
@@ -7,19 +7,28 @@ from state import auth_headers
 from constants import EP
 
 
-def http_get(url: str, params: Optional[Dict[str, Any]] = None, needs_auth: bool = False):
-    headers = auth_headers() if needs_auth else {}
-    return requests.get(url, params=params, headers=headers, timeout=60)
+def _merge_headers(needs_auth: bool, extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    h: Dict[str, str] = {}
+    if needs_auth:
+        h.update(auth_headers())
+    if extra:
+        h.update(extra)
+    return h
 
 
-def http_post(url: str, json_payload: Dict[str, Any], needs_auth: bool = False):
-    headers = auth_headers() if needs_auth else {}
-    return requests.post(url, json=json_payload, headers=headers, timeout=60)
+def http_get(url: str, params: Optional[Dict[str, Any]] = None, needs_auth: bool = False,
+             headers: Optional[Dict[str, str]] = None):
+    return requests.get(url, params=params, headers=_merge_headers(needs_auth, headers), timeout=60)
 
 
-def http_patch(url: str, json_payload: Dict[str, Any], needs_auth: bool = False):
-    headers = auth_headers() if needs_auth else {}
-    return requests.patch(url, json=json_payload, headers=headers, timeout=60)
+def http_post(url: str, json_payload: Dict[str, Any], needs_auth: bool = False,
+              headers: Optional[Dict[str, str]] = None):
+    return requests.post(url, json=json_payload, headers=_merge_headers(needs_auth, headers), timeout=60)
+
+
+def http_patch(url: str, json_payload: Dict[str, Any], needs_auth: bool = False,
+               headers: Optional[Dict[str, str]] = None):
+    return requests.patch(url, json=json_payload, headers=_merge_headers(needs_auth, headers), timeout=60)
 
 
 # Company
@@ -38,9 +47,9 @@ def fetch_company() -> Optional[Dict[str, Any]]:
         return None
 
 
-def save_company(payload: Dict[str, Any]) -> bool:
+def save_company(payload: Dict[str, Any], headers: Optional[Dict[str, str]] = None) -> bool:
     try:
-        r = http_post(EP["company_post"], payload, needs_auth=True)
+        r = http_post(EP["company_post"], payload, needs_auth=True, headers=headers)
         if r.status_code in (200, 201):
             return True
         st.error(f"Save failed ({r.status_code}): {r.text}")
@@ -48,6 +57,7 @@ def save_company(payload: Dict[str, Any]) -> bool:
     except requests.RequestException as e:
         st.error(f"Network error saving company: {e}")
         return False
+
 
 # Campaigns
 
@@ -74,15 +84,23 @@ def generate_campaign(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
 
-def update_campaign_status(campaign_id: int, status: str, result_notes: str, product: Optional[str] = None, date_str: Optional[str] = None) -> bool:
+def update_campaign_status(
+    campaign_id: int,
+    status: str,
+    result_notes: str,
+    product: Optional[str] = None,
+    date_str: Optional[str] = None
+) -> bool:
     if not status or not result_notes:
         st.error("Status and result notes are required.")
         return False
+
     payload: Dict[str, Any] = {"status": status, "result_notes": result_notes}
     if product:
         payload["product"] = product
     if date_str:
         payload["date"] = date_str  # expect YYYY-MM-DD
+
     try:
         url = f"{EP['campaign_update_base']}/{campaign_id}/status"
         r = http_patch(url, payload, needs_auth=True)
