@@ -16,18 +16,30 @@ def _merge_headers(needs_auth: bool, extra: Optional[Dict[str, str]] = None) -> 
     return h
 
 
-def http_get(url: str, params: Optional[Dict[str, Any]] = None, needs_auth: bool = False,
-             headers: Optional[Dict[str, str]] = None):
+def http_get(
+    url: str,
+    params: Optional[Dict[str, Any]] = None,
+    needs_auth: bool = False,
+    headers: Optional[Dict[str, str]] = None
+):
     return requests.get(url, params=params, headers=_merge_headers(needs_auth, headers), timeout=60)
 
 
-def http_post(url: str, json_payload: Dict[str, Any], needs_auth: bool = False,
-              headers: Optional[Dict[str, str]] = None):
+def http_post(
+    url: str,
+    json_payload: Dict[str, Any],
+    needs_auth: bool = False,
+    headers: Optional[Dict[str, str]] = None
+):
     return requests.post(url, json=json_payload, headers=_merge_headers(needs_auth, headers), timeout=60)
 
 
-def http_patch(url: str, json_payload: Dict[str, Any], needs_auth: bool = False,
-               headers: Optional[Dict[str, str]] = None):
+def http_patch(
+    url: str,
+    json_payload: Dict[str, Any],
+    needs_auth: bool = False,
+    headers: Optional[Dict[str, str]] = None
+):
     return requests.patch(url, json=json_payload, headers=_merge_headers(needs_auth, headers), timeout=60)
 
 
@@ -91,6 +103,9 @@ def update_campaign_status(
     product: Optional[str] = None,
     date_str: Optional[str] = None
 ) -> bool:
+    if not isinstance(campaign_id, int) or campaign_id <= 0:
+        st.error("Invalid campaign_id.")
+        return False
     if not status or not result_notes:
         st.error("Status and result notes are required.")
         return False
@@ -102,12 +117,4 @@ def update_campaign_status(
         payload["date"] = date_str  # expect YYYY-MM-DD
 
     try:
-        url = f"{EP['campaign_update_base']}/{campaign_id}/status"
-        r = http_patch(url, payload, needs_auth=True)
-        if r.status_code == 200:
-            return True
-        st.error(f"Update failed ({r.status_code}): {r.text}")
-        return False
-    except requests.RequestException as e:
-        st.error(f"Network error updating campaign: {e}")
-        return False
+        base = EP["campaign_update_bas]()
