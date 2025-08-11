@@ -1,5 +1,3 @@
-# services/api_client.py
-
 from typing import Optional, Dict, Any, List
 import requests
 import streamlit as st
@@ -38,9 +36,16 @@ def http_patch(
     url: str,
     json_payload: Dict[str, Any],
     needs_auth: bool = False,
-    headers: Optional[Dict[str, str]] = None
+    headers: Optional[Dict[str, str]] = None,
+    params: Optional[Dict[str, Any]] = None
 ):
-    return requests.patch(url, json=json_payload, headers=_merge_headers(needs_auth, headers), timeout=60)
+    return requests.patch(
+        url,
+        json=json_payload,
+        params=params,  # allow query params on PATCH
+        headers=_merge_headers(needs_auth, headers),
+        timeout=60,
+    )
 
 
 # Company
@@ -97,29 +102,29 @@ def generate_campaign(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def update_campaign_status(
-    campaign_id: int,
     status: str,
     result_notes: str,
     product: Optional[str] = None,
     date_str: Optional[str] = None
 ) -> bool:
-    if not isinstance(campaign_id, int) or campaign_id <= 0:
-        st.error("Invalid campaign_id.")
-        return False
+    """Match backend: PATCH /campaign/status?product=...&date=YYYY-MM-DD with JSON body."""
     if not status or not result_notes:
         st.error("Status and result notes are required.")
         return False
+    if not product and not date_str:
+        st.error("Provide at least one of: product or date (YYYY-MM-DD).")
+        return False
 
     payload: Dict[str, Any] = {"status": status, "result_notes": result_notes}
+    q: Dict[str, Any] = {}
     if product:
-        payload["product"] = product
+        q["product"] = product
     if date_str:
-        payload["date"] = date_str  # YYYY-MM-DD
+        q["date"] = date_str  # YYYY-MM-DD
 
     try:
-        base = EP["campaign_update_base"].rstrip("/")  # now .../campaigns
-        url = f"{base}/{campaign_id}/status"          # .../campaigns/{id}/status
-        r = http_patch(url, payload, needs_auth=True)
+        url = EP["campaign_status"]
+        r = http_patch(url, payload, needs_auth=True, params=q)
         if r.status_code == 200:
             return True
         st.error(f"Update failed ({r.status_code}): {r.text}")
@@ -127,4 +132,3 @@ def update_campaign_status(
     except requests.RequestException as e:
         st.error(f"Network error updating campaign: {e}")
         return False
-
