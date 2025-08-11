@@ -99,5 +99,3 @@ def generate_campaign(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     except requests.RequestException as e:
         st.error(f"Network error generating campaign: {e}")
         return None
-
-
