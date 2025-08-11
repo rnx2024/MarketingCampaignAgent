@@ -11,7 +11,7 @@ EP = {
     "company_post": f"{API_BASE_URL}/company",
     "campaign_generate": f"{API_BASE_URL}/marketing/generate",
     "campaigns": f"{API_BASE_URL}/campaigns",
-    "campaign_update_base": f"{API_BASE_URL}/campaigns",  # PATCH /campaign/{id}/status
+    "campaign_update_base": f"{API_BASE_URL}/campaign/status",  # PATCH /campaign/{id}/status
 }
 
 CAMPAIGN_TYPES = ["Brand Awareness", "Lead Generation", "Product Launch", "Retention", "Seasonal/Promo"]
