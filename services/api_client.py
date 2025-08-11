@@ -114,11 +114,11 @@ def update_campaign_status(
     if product:
         payload["product"] = product
     if date_str:
-        payload["date"] = date_str  # expect YYYY-MM-DD
+        payload["date"] = date_str  # YYYY-MM-DD
 
     try:
-        base = EP["campaign_update_base"].rstrip("/")
-        url = f"{base}/{campaign_id}/status"
+        base = EP["campaign_update_base"].rstrip("/")  # now .../campaigns
+        url = f"{base}/{campaign_id}/status"          # .../campaigns/{id}/status
         r = http_patch(url, payload, needs_auth=True)
         if r.status_code == 200:
             return True
@@ -127,3 +127,4 @@ def update_campaign_status(
     except requests.RequestException as e:
         st.error(f"Network error updating campaign: {e}")
         return False
+
