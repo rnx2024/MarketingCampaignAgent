@@ -4,6 +4,15 @@ from constants import EP
 from services.api_client import http_post
 from state import store_session_from_login
 
+FLASH_KEY = "auth_flash"  # ("success"|"error", message)
+
+def _show_flash():
+    kind, msg = st.session_state.pop(FLASH_KEY, (None, None))
+    if kind == "success":
+        st.success(msg)
+    elif kind == "error":
+        st.error(msg)
+
 def _clear_session():
     for k in ("name", "token", "company_cache", "auth_pref", "register_busy", "login_prefill"):
         st.session_state.pop(k, None)
@@ -20,6 +29,7 @@ def logout() -> None:
 
 def render_auth() -> None:
     st.header("Access")
+    _show_flash()  # <-- show any message set before a rerun
 
     if st.session_state.get("token") and st.session_state.get("name"):
         st.info(f"Logged in as {st.session_state['name']}")
@@ -46,49 +56,46 @@ def render_auth() -> None:
             )
 
         if r_submit and not st.session_state.get("register_busy", False):
-            # prevent double submission
             st.session_state["register_busy"] = True
-            name = (r_name or "").strip()
-            email = (r_email or "").strip()
-            password = r_password or ""
-            password2 = r_password2 or ""
-            api_key = (r_api_key or "").strip()
+            try:
+                name = (r_name or "").strip()
+                email = (r_email or "").strip()
+                password = r_password or ""
+                password2 = r_password2 or ""
+                api_key = (r_api_key or "").strip()
 
-            missing = [lbl for lbl, v in {
-                "Name": name, "Email": email, "Password": password, "Confirm Password": password2, "API Key": api_key
-            }.items() if not v]
-            if missing:
-                st.error(f"Missing required: {', '.join(missing)}")
-                st.session_state["register_busy"] = False
-            elif "@" not in email:
-                st.error("Enter a valid email.")
-                st.session_state["register_busy"] = False
-            elif password != password2:
-                st.error("Passwords do not match.")
-                st.session_state["register_busy"] = False
-            else:
+                missing = [lbl for lbl, v in {
+                    "Name": name, "Email": email, "Password": password, "Confirm Password": password2, "API Key": api_key
+                }.items() if not v]
+                if missing:
+                    st.error(f"Missing required: {', '.join(missing)}")
+                    return
+                if "@" not in email:
+                    st.error("Enter a valid email.")
+                    return
+                if password != password2:
+                    st.error("Passwords do not match.")
+                    return
+
                 payload = {"name": name, "password": password, "email": email, "api_key": api_key}
                 with st.spinner("Creating your account..."):
                     resp = http_post(EP["register"], payload)
 
                 if resp.status_code in (200, 201):
-                    # Success UX: show message, switch to Login, prefill name
-                    st.success("Registration successful. Please log in.")
+                    # Persist message and force Login tab on next render
+                    st.session_state[FLASH_KEY] = ("success", "Registration successful. Please log in.")
                     st.session_state["auth_pref"] = "Login"
                     st.session_state["login_prefill"] = name
-                    st.session_state["register_busy"] = False
                     st.rerun()
                 elif resp.status_code in (403, 409, 422):
-                    # Typical: user already exists, invalid api key, or validation
                     st.error(f"Registration failed ({resp.status_code}): {resp.text}")
-                    st.session_state["register_busy"] = False
                 else:
                     st.error(f"Unexpected response ({resp.status_code}): {resp.text}")
-                    st.session_state["register_busy"] = False
+            finally:
+                st.session_state["register_busy"] = False
 
     # -------- Login --------
     if mode == "Login":
-        # prefill after successful registration
         prefill_name = st.session_state.pop("login_prefill", "")
         with st.form("login_form"):
             l_name = st.text_input("Name", value=prefill_name, key="login_name")
