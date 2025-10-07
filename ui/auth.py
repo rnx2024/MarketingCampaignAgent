@@ -30,7 +30,7 @@ def logout() -> None:
 
 def render_auth() -> None:
     st.header("Access")
-    _show_flash()  # <-- show any message set before a rerun
+    _show_flash()
 
     if st.session_state.get("token") and st.session_state.get("name"):
         st.info(f"Logged in as {st.session_state['name']}")
@@ -38,31 +38,21 @@ def render_auth() -> None:
             logout()
         return
 
-    # force radio to Login after successful registration
     if st.session_state.pop("force_login", False):
         st.session_state[RADIO_KEY] = "Login"
 
-    # keyed radio so we can control it across reruns
-    mode = st.radio(
-        "Choose an action",
-        ["Login", "Register"],
-        horizontal=True,
-        key=RADIO_KEY,
-    )
+    mode = st.radio("Choose an action", ["Login", "Register"], horizontal=True, key=RADIO_KEY)
 
     # -------- Register --------
     if mode == "Register":
         st.session_state.setdefault("register_busy", False)
         with st.form("register_form", clear_on_submit=False):
-            r_name = st.text_input("Name")
-            r_email = st.text_input("Email")
-            r_password = st.text_input("Password", type="password")
-            r_password2 = st.text_input("Confirm Password", type="password")
-            r_api_key = st.text_input("API Key")
-            r_submit = st.form_submit_button(
-                "Register",
-                disabled=st.session_state.get("register_busy", False)
-            )
+            r_name = st.text_input("Name", key="register_name")
+            r_email = st.text_input("Email", key="register_email")
+            r_password = st.text_input("Password", type="password", key="register_pw")
+            r_password2 = st.text_input("Confirm Password", type="password", key="register_pw2")
+            r_api_key = st.text_input("API Key", key="register_api")
+            r_submit = st.form_submit_button("Register", disabled=st.session_state.get("register_busy", False))
 
         if r_submit and not st.session_state.get("register_busy", False):
             st.session_state["register_busy"] = True
@@ -91,7 +81,12 @@ def render_auth() -> None:
                     resp = http_post(EP["register"], payload)
 
                 if resp.status_code in (200, 201):
-                    # Persist message, prefill name, and force Login tab on next render
+                    # clear form values so they won't persist
+                    for k in ("register_name", "register_email", "register_pw", "register_pw2", "register_api"):
+                        if k in st.session_state:
+                            del st.session_state[k]
+
+                    # flash message + force login tab
                     st.session_state[FLASH_KEY] = ("success", "Registration successful. Please log in.")
                     st.session_state["login_prefill"] = name
                     st.session_state["force_login"] = True
