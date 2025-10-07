@@ -41,7 +41,7 @@ def render_auth() -> None:
     if st.session_state.pop("force_login", False):
         st.session_state[RADIO_KEY] = "Login"
 
-    mode = st.radio("Choose an action", ["Login", "Register"], horizontal=True, key=RADIO_KEY)
+    mode = st.radio("Welcome to your Smart Marketing Agent! If you haven't created an account yet, please register.", ["Login", "Register"], horizontal=True, key=RADIO_KEY)
 
     # -------- Register --------
     if mode == "Register":
