@@ -5,6 +5,7 @@ from services.api_client import http_post
 from state import store_session_from_login
 
 FLASH_KEY = "auth_flash"  # ("success"|"error", message)
+RADIO_KEY = "auth_mode"   # persistent radio state
 
 def _show_flash():
     kind, msg = st.session_state.pop(FLASH_KEY, (None, None))
@@ -37,9 +38,17 @@ def render_auth() -> None:
             logout()
         return
 
-    pref = st.session_state.pop("auth_pref", "Login")
-    mode = st.radio("Choose an action", ["Login", "Register"], horizontal=True,
-                    index=(0 if pref == "Login" else 1))
+    # force radio to Login after successful registration
+    if st.session_state.pop("force_login", False):
+        st.session_state[RADIO_KEY] = "Login"
+
+    # keyed radio so we can control it across reruns
+    mode = st.radio(
+        "Choose an action",
+        ["Login", "Register"],
+        horizontal=True,
+        key=RADIO_KEY,
+    )
 
     # -------- Register --------
     if mode == "Register":
@@ -82,10 +91,10 @@ def render_auth() -> None:
                     resp = http_post(EP["register"], payload)
 
                 if resp.status_code in (200, 201):
-                    # Persist message and force Login tab on next render
+                    # Persist message, prefill name, and force Login tab on next render
                     st.session_state[FLASH_KEY] = ("success", "Registration successful. Please log in.")
-                    st.session_state["auth_pref"] = "Login"
                     st.session_state["login_prefill"] = name
+                    st.session_state["force_login"] = True
                     st.rerun()
                 elif resp.status_code in (403, 409, 422):
                     st.error(f"Registration failed ({resp.status_code}): {resp.text}")
