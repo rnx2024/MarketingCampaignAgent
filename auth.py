@@ -5,7 +5,7 @@ from services.api_client import http_post
 from state import store_session_from_login
 
 def _clear_session():
-    for k in ("name", "token", "company_cache", "auth_pref"):
+    for k in ("name", "token", "company_cache", "auth_pref", "register_busy", "login_prefill"):
         st.session_state.pop(k, None)
     st.session_state["auth_pref"] = "Login"
 
@@ -31,52 +31,78 @@ def render_auth() -> None:
     mode = st.radio("Choose an action", ["Login", "Register"], horizontal=True,
                     index=(0 if pref == "Login" else 1))
 
+    # -------- Register --------
     if mode == "Register":
-        with st.form("register_form"):
+        st.session_state.setdefault("register_busy", False)
+        with st.form("register_form", clear_on_submit=False):
             r_name = st.text_input("Name")
             r_email = st.text_input("Email")
             r_password = st.text_input("Password", type="password")
+            r_password2 = st.text_input("Confirm Password", type="password")
             r_api_key = st.text_input("API Key")
-            r_submit = st.form_submit_button("Register")
+            r_submit = st.form_submit_button(
+                "Register",
+                disabled=st.session_state.get("register_busy", False)
+            )
 
-        if r_submit:
-            name = r_name.strip()
-            email = r_email.strip()
-            password = r_password
-            api_key = r_api_key.strip()
+        if r_submit and not st.session_state.get("register_busy", False):
+            # prevent double submission
+            st.session_state["register_busy"] = True
+            name = (r_name or "").strip()
+            email = (r_email or "").strip()
+            password = r_password or ""
+            password2 = r_password2 or ""
+            api_key = (r_api_key or "").strip()
 
             missing = [lbl for lbl, v in {
-                "Name": name, "Email": email, "Password": password, "API Key": api_key
+                "Name": name, "Email": email, "Password": password, "Confirm Password": password2, "API Key": api_key
             }.items() if not v]
             if missing:
                 st.error(f"Missing required: {', '.join(missing)}")
+                st.session_state["register_busy"] = False
             elif "@" not in email:
                 st.error("Enter a valid email.")
+                st.session_state["register_busy"] = False
+            elif password != password2:
+                st.error("Passwords do not match.")
+                st.session_state["register_busy"] = False
             else:
                 payload = {"name": name, "password": password, "email": email, "api_key": api_key}
-                resp = http_post(EP["register"], payload)
+                with st.spinner("Creating your account..."):
+                    resp = http_post(EP["register"], payload)
+
                 if resp.status_code in (200, 201):
-                    st.success("Registered successfully. Please log in.")
+                    # Success UX: show message, switch to Login, prefill name
+                    st.success("Registration successful. Please log in.")
                     st.session_state["auth_pref"] = "Login"
+                    st.session_state["login_prefill"] = name
+                    st.session_state["register_busy"] = False
                     st.rerun()
                 elif resp.status_code in (403, 409, 422):
+                    # Typical: user already exists, invalid api key, or validation
                     st.error(f"Registration failed ({resp.status_code}): {resp.text}")
+                    st.session_state["register_busy"] = False
                 else:
                     st.error(f"Unexpected response ({resp.status_code}): {resp.text}")
+                    st.session_state["register_busy"] = False
 
+    # -------- Login --------
     if mode == "Login":
+        # prefill after successful registration
+        prefill_name = st.session_state.pop("login_prefill", "")
         with st.form("login_form"):
-            l_name = st.text_input("Name", key="login_name")
+            l_name = st.text_input("Name", value=prefill_name, key="login_name")
             l_password = st.text_input("Password", type="password", key="login_pw")
             l_submit = st.form_submit_button("Login")
 
         if l_submit:
-            name = l_name.strip()
+            name = (l_name or "").strip()
             if not name or not l_password:
                 st.error("Name and Password are required.")
             else:
                 payload = {"name": name, "password": l_password}
-                resp = http_post(EP["login"], payload)
+                with st.spinner("Signing in..."):
+                    resp = http_post(EP["login"], payload)
                 if resp.status_code == 200:
                     try:
                         store_session_from_login(resp.json(), name)
