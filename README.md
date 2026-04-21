@@ -74,6 +74,3 @@ LangChain
 OpenAI GPT-4o
 FPDF
 ```
-
-## 📄 License
-© 2025 Rhanny Urbis
